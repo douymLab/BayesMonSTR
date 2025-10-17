@@ -1,0 +1,2 @@
+FLK_BP = 5
+FLK_BP_SEG = 10
