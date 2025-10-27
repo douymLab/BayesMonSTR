@@ -6,9 +6,9 @@ A toolkit for mosaic STR mutation calling.
 
 run `./INSTALL.sh`.
 
-## MonSTR-Bayes
+## MonSTR-SC
 
-See [MonSTR-Bayes](MonSTR-Bayes/README.md) for details.
+See [MonSTR-SC](MonSTR-SC/README.md) for details.
 
 ## MoSTR-Bulk
 
