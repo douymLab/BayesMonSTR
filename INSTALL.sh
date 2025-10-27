@@ -1,9 +1,9 @@
-# install MonSTR-Bayes
+# install MoSTR-Bayes
 
-echo "installing MonSTR-Bayes..."
-cd MonSTR-Bayes/
+echo "installing MoSTR-Bayes..."
+cd MoSTR-Bayes/
 pip install python/
-echo "MonSTR-Bayes installed"
+echo "MoSTR-Bayes installed"
 
 # install MoSTR-Bulk
 echo "installing MoSTR-Bulk..."

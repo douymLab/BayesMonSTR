@@ -42,7 +42,7 @@ setup(
     python_requires=">=3.11",
     entry_points={
         "console_scripts": [
-            "BayesMonSTR=BayesMonSTR.scTRcaller:main",
+            "MoSTR-SC=BayesMonSTR.scTRcaller:main",
         ]
     },
 )

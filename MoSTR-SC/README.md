@@ -46,7 +46,7 @@ conda activate MoSTR-SC
 
 git clone https://github.com/douymLab/MoSTR.git
 
-cd MonSTR-Bayes/
+cd MonSTR-SC/
 
 pip install python/
 ```
@@ -241,7 +241,7 @@ build docker image by
 ```shell
 git clone https://github.com/douymLab/MoSTR.git
 
-cd MonSTR-Bayes/docker
+cd MonSTR-SC/docker
 
 sudo docker build -f docker/Dockerfile -t mostrsc .
 ```

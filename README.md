@@ -1,4 +1,4 @@
-# MonSTR
+# MoSTR
 
 A toolkit for mosaic STR mutation calling.
 
@@ -6,9 +6,9 @@ A toolkit for mosaic STR mutation calling.
 
 run `./INSTALL.sh`.
 
-## MonSTR-SC
+## MoSTR-SC
 
-See [MonSTR-SC](MonSTR-SC/README.md) for details.
+See [MoSTR-SC](MoSTR-SC/README.md) for details.
 
 ## MoSTR-Bulk
 
