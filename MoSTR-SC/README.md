@@ -46,7 +46,7 @@ conda activate MoSTR-SC
 
 git clone https://github.com/douymLab/MoSTR.git
 
-cd MonSTR-SC/
+cd MoSTR-SC/
 
 pip install python/
 ```
@@ -241,7 +241,7 @@ build docker image by
 ```shell
 git clone https://github.com/douymLab/MoSTR.git
 
-cd MonSTR-SC/docker
+cd MoSTR-SC/docker
 
 sudo docker build -f docker/Dockerfile -t mostrsc .
 ```
