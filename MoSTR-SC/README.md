@@ -1,4 +1,4 @@
-<h1 align="center">BayesMonSTR</h1>
+<h1 align="center">MoSTR-SC</h1>
 
 <p align="center">A tool for mosaic STR mutation detection from single-cell data.</p>
 
@@ -14,12 +14,12 @@
 
 ## Install
 
-BayesMonSTR can be installed directly by
+MoSTR-SC can be installed directly by
 
 ```shell
 git clone https://github.com/douymLab/MoSTR.git
 
-cd MonSTR-Bayes/
+cd MoSTR-SC/
 
 pip install python/
 ```
@@ -27,7 +27,7 @@ pip install python/
 or to an new conda environment by
 
 ```shell
-conda create -n BayesMonSTR -y -c conda-forge -c bioconda \
+conda create -n MoSTR-SC -y -c conda-forge -c bioconda \
     biopython \
     duckdb \
     GPy \
@@ -42,7 +42,7 @@ conda create -n BayesMonSTR -y -c conda-forge -c bioconda \
     statsmodels \
     tqdm
 
-conda activate BayesMonSTR
+conda activate MoSTR-SC
 
 git clone https://github.com/douymLab/MoSTR.git
 
@@ -54,7 +54,7 @@ pip install python/
 to check installation, try
 
 ```shell
-BayesMonSTR --version
+MoSTR-SC --version
 ```
 
 see [Docker](#docker) for docker usage.
@@ -70,13 +70,13 @@ wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_d
 gunzip human_g1k_v37_decoy*.gz
 
 # STR reference panel
-wget https://github.com/wenx00/BayesMonSTR-resources/raw/refs/heads/master/human/reference_GRCh37.bed
+wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/reference_GRCh37.bed
 
 # STR stutter profile
-wget https://github.com/wenx00/BayesMonSTR-resources/raw/refs/heads/master/human/stutter_GRCh37.csv
+wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/stutter_GRCh37.csv
 
 # STR population allele frequency database
-wget https://github.com/wenx00/BayesMonSTR-resources/raw/refs/heads/master/human/hap_freqs.db
+wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/hap_freqs.db
 
 ```
 
@@ -89,21 +89,21 @@ gunzip mm10.fa.gz
 samtools faidx mm10.fa
 
 # STR reference panel
-wget https://github.com/wenx00/BayesMonSTR-resources/raw/refs/heads/master/mouse/reference_mm10.bed
+wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/mouse/reference_mm10.bed
 
 # STR stutter profile
-wget https://github.com/wenx00/BayesMonSTR-resources/raw/refs/heads/master/mouse/stutter_mm10.csv
+wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/mouse/stutter_mm10.csv
 ```
 
 ## Usage
 
 ```shell
-$ BayesMonSTR --help
+$ MoSTR-SC --help
 
-usage: BayesMonSTR [-h] [-D] [--nobulk] [--ra] [-n NUM_WORKERS] -r REF -i INFO [-a AB_INFO] [-p PHASING [PHASING ...]] [-g SC_INFO [SC_INFO ...]] [-f FREQ] -b REGION [-S STUTTER]
+usage: MoSTR-SC [-h] [-D] [--nobulk] [--ra] [-n NUM_WORKERS] -r REF -i INFO [-a AB_INFO] [-p PHASING [PHASING ...]] [-g SC_INFO [SC_INFO ...]] [-f FREQ] -b REGION [-S STUTTER]
                    [-m MODE] [-C] [-Q] [-U UNPHASE] [-O VCF] [-V]
 
-BayesMonSTR
+MoSTR-SC
 
 options:
   -h, --help            show this help message and exit
@@ -184,7 +184,7 @@ Path to the STR population allele frequency database, e.g., hap_freqs.db. It is 
 
 #### -p PHASING
 
-By default, BayesMonSTR automatically searches for germline hSNPs. However, to specify hSNP loci, use this argument and provide a phased VCF file containing germline hSNPs for bulk data.
+By default, MoSTR-SC automatically searches for germline hSNPs. However, to specify hSNP loci, use this argument and provide a phased VCF file containing germline hSNPs for bulk data.
 
 #### -g SC_INFO
 
@@ -196,13 +196,13 @@ Path to allele frequency (AF) values regressed using Gaussian process regression
 
 ## Demo
 
-A demo for running BayesMonSTR is provided in the `demo/` directory, which includes sample input files. Users can refer to this example for the expected input format.
+A demo for running MoSTR-SC is provided in the `demo/` directory, which includes sample input files. Users can refer to this example for the expected input format.
 
 ```shell
 cd demo/
 
 # run genotyping
-BayesMonSTR -b GRCh37_reference_STR.bed \
+MoSTR-SC -b GRCh37_reference_STR.bed \
     -i metadata.csv \
     -r human_g1k_v37_decoy.fasta \
     -S stutter.csv \
@@ -234,7 +234,7 @@ The final mosaic call set is provided in the `results/*.csv` files. Below is a d
 
 ## Docker
 
-BayesMonSTR can be ran with Docker as well.
+MoSTR-SC can be ran with Docker as well.
 
 build docker image by
 
@@ -243,10 +243,10 @@ git clone https://github.com/douymLab/MoSTR.git
 
 cd MonSTR-Bayes/docker
 
-sudo docker build -f docker/Dockerfile -t bayesmonstr .
+sudo docker build -f docker/Dockerfile -t mostrsc .
 ```
 
-run BayesMonSTR by
+run MoSTR-SC by
 
 ```shell
 mkdir -p results
@@ -256,8 +256,8 @@ sudo docker run -it --rm \
     -v ./demo/:/demo \
     -v ./results:/results \
     -w /demo \
-    bayesmonstr \
-    BayesMonSTR \
+    mostrsc \
+    MoSTR-SC \
         -b GRCh37_reference_STR.bed \
         -i metadata.csv \
         -r human_g1k_v37_decoy.fasta \
@@ -273,7 +273,7 @@ sudo docker run -it --rm \
     -v ../demo/:/demo \
     -v ./results:/results \
     -w /demo \
-    bayesmonstr \
+    mostrsc \
     python /scripts/mosaic.py \
         -i /results/str_gt.vcf \
         -o /results
