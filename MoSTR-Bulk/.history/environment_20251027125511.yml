@@ -1,4 +1,4 @@
-name: MoSTR-Bulk
+name: BulkMonSTR
 channels:
   - bioconda
   - defaults
