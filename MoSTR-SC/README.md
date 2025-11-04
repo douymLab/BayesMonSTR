@@ -70,13 +70,13 @@ wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_d
 gunzip human_g1k_v37_decoy*.gz
 
 # STR reference panel
-wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/reference_GRCh37.bed
+wget https://github.com/wenx00/STR-resources/raw/refs/heads/master/human/reference_GRCh37.bed
 
 # STR stutter profile
-wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/stutter_GRCh37.csv
+wget https://github.com/wenx00/STR-resources/raw/refs/heads/master/human/stutter_GRCh37.csv
 
 # STR population allele frequency database
-wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/human/hap_freqs.db
+wget https://github.com/wenx00/STR-resources/raw/refs/heads/master/human/hap_freqs.db
 
 ```
 
@@ -89,10 +89,10 @@ gunzip mm10.fa.gz
 samtools faidx mm10.fa
 
 # STR reference panel
-wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/mouse/reference_mm10.bed
+wget https://github.com/wenx00/STR-resources/raw/refs/heads/master/mouse/reference_mm10.bed
 
 # STR stutter profile
-wget https://github.com/wenx00/MoSTR-SC-resources/raw/refs/heads/master/mouse/stutter_mm10.csv
+wget https://github.com/wenx00/STR-resources/raw/refs/heads/master/mouse/stutter_mm10.csv
 ```
 
 ## Usage
