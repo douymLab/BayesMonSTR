@@ -1,11 +1,11 @@
-# install MoSTR-SC
-echo "installing MoSTR-SC..."
-cd MoSTR-SC/
+# install BayesMonSTR
+echo "installing BayesMonSTR..."
+cd BayesMonSTR/
 pip install python/
-echo "MoSTR-SC installed"
+echo "BayesMonSTR installed"
 
-# install MoSTR-Bulk
-echo "installing MoSTR-Bulk..."
+# install BayesMonSTR-Bulk
+echo "installing BayesMonSTR-Bulk..."
 cd ../
-conda env create -f MoSTR-Bulk/environment.yml
-echo "MoSTR-Bulk installed"
+conda env create -f BayesMonSTR-Bulk/environment.yml
+echo "BayesMonSTR-Bulk installed"

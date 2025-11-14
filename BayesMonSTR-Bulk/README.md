@@ -1,8 +1,8 @@
-# MoSTR-Bulk
+# BayesMonSTR-Bulk
 
-**MoSTR-Bulk** is a computational tool designed for detecting **mosaic mutations** in **short tandem repeat (STR) regions** without matched controls, and is capable of detecting **short contractions, expansions, and interruption mosaic mutations** within repeat regions.
+**BayesMonSTR-Bulk** is a computational tool designed for detecting **mosaic mutations** in **short tandem repeat (STR) regions** without matched controls, and is capable of detecting **short contractions, expansions, and interruption mosaic mutations** within repeat regions.
 
-**MoSTR-Bulk is still in testing**, and as such, it includes several unnecessary steps and output that are primarily used for **debugging purposes**. These steps and redundant output will be streamlined and optimized in future versions of the software.
+**BayesMonSTR-Bulk is still in testing**, and as such, it includes several unnecessary steps and output that are primarily used for **debugging purposes**. These steps and redundant output will be streamlined and optimized in future versions of the software.
 
 
 # Table Contents
@@ -10,13 +10,13 @@
 - [Installation](#installation)
 - [Demo](#demo)
 - [Considerations](#considerations)
-- [MoSTR-Bulk workflow](#mostr-bulk-workflow)
+- [BayesMonSTR-Bulk workflow](#BayesMonSTR-Bulk-workflow)
   - [1. Estimation of locus-based stutter model (all samples)](#1-estimation-of-locus-based-stutter-model-all-samples)
   - [2. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)](#2-estimation-of-mosaic-fraction-and-mosaic-genotyping-all-samples)
   - [3. Extraction of population information (all samples)](#3-extraction-of-population-information-all-samples)
   - [4. Initial Hard Filtering for Each Sample (single sample)](#4-initial-hard-filtering-for-each-sample-single-sample)
   - [5. Extraction of features (single sample)](#5-extraction-of-features-single-sample)
-  - [6. MoSTR-Bulk prediction](#6-mostr-bulk-prediction)
+  - [6. BayesMonSTR-Bulk prediction](#6-BayesMonSTR-Bulk-prediction)
 - [Run in batch scripts](#run-in-batch-scripts)
 - [Pipeline optimized for paired-samples mode](#pipeline-optimized-for-paired-samples-mode)
 - [Pipeline optimized for LCM samples](#pipeline-optimized-for-lcm-samples)
@@ -29,8 +29,8 @@
 To set up the environment and install the necessary dependencies, follow the instructions below:
 ```bash
 git clone https://github.com/douymLab/MoSTR.git
-conda env create -f MoSTR/MoSTR-Bulk/environment.yml
-conda activate MoSTR-Bulk
+conda env create -f MoSTR/BayesMonSTR-Bulk/environment.yml
+conda activate BayesMonSTR-Bulk
 bcftools should be downloaded from https://github.com/samtools/bcftools
 ```
 
@@ -42,12 +42,12 @@ A **demo dataset** is available in the `demo` directory, which can be used for t
 ## Considerations
 - HG38/GRCH38 is recommended in current version
 - PCR-free sequencing is recommended
-- MoSTR-Bulk is not optimized for **large repeat expansions** or **clonal tumor samples** currently.
-- MoSTR-Bulk in **low-depth samples（30x）** has not been optimized, making it more challenging to distinguish **mosaic mutations** from **germline variants** in such cases.
+- BayesMonSTR-Bulk is not optimized for **large repeat expansions** or **clonal tumor samples** currently.
+- BayesMonSTR-Bulk in **low-depth samples（30x）** has not been optimized, making it more challenging to distinguish **mosaic mutations** from **germline variants** in such cases.
 - In our preliminary tests, analyzing **200** whole-genome sequencing (**～1.6 millons STR loci**) samples at **30-50x** depth took approximately **1-2 weeks** using **1600** cpus, so please ensure the software is **suitable** for your use case before running large-scale analyses.
 
 
-## MoSTR-Bulk workflow
+## BayesMonSTR-Bulk workflow
 
 ### 1. Estimation of locus-based stutter model (all samples)
 ---
@@ -57,7 +57,7 @@ We recommend using more than **20 unrelated individuals** or samples (**avoid mu
 The stutter model can be estimated using the following command:
 
 ```sh
-python3 ~/MoSTR-Bulk/src/stutter_model_estimation.py \  # Run the stutter model estimation script
+python3 ~/BayesMonSTR-Bulk/src/stutter_model_estimation.py \  # Run the stutter model estimation script
     -i ${metadata} \  # Input metadata file as below
     -r ${ref} \  # Reference genome FASTA file
     -b ${bed} \  # 0-based STR regions BED file (bgzip compression and tabix indexing)
@@ -69,8 +69,8 @@ python3 ~/MoSTR-Bulk/src/stutter_model_estimation.py \  # Run the stutter model 
     -s 30216700 \  # Start coordinate of the region of interest
     -e 30216750 \  # End coordinate of the region of interest
     -t 1  # Number of threads to use for processing
-bgzip ~/MoSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt
-tabix -p bed ~/MoSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz
+bgzip ~/BayesMonSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt
+tabix -p bed ~/BayesMonSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz
 ```
 
 If the interval regions are processed in parallel, you should merge all the stutter results from the different intervals.
@@ -103,8 +103,8 @@ tabix -p bed stutter_result_uniq_sorted.bed.gz
 
 | Ind              | Ind              | Sex     | Tissue  | sequencing_type | bam_path                                                                 | mosdepth_wgs_mean_depth | used_genotyping_str_mean_depth | seq_tech |
 |------------------|------------------|--------|---------|----------------|------------------------------------------------------------------------|-------------------------|--------------------------------|---------|
-| HG002_1 | HG002 | male | LCL | WGS            | ~/MoSTR-Bulk/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_1.bam | 300                    | 300                           | illumina |
-| HG002_2 | HG002 | male | LCL | WGS            | ~/MoSTR-Bulk/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_2.bam | 300                    | 300                           | illumina |
+| HG002_1 | HG002 | male | LCL | WGS            | ~/BayesMonSTR-Bulk/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_1.bam | 300                    | 300                           | illumina |
+| HG002_2 | HG002 | male | LCL | WGS            | ~/BayesMonSTR-Bulk/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_2.bam | 300                    | 300                           | illumina |
 
 
 - **BED file**: We use the **STR reference panel** from **HipSTR**, which can be downloaded from:  
@@ -136,7 +136,7 @@ tabix -p bed stutter_result_uniq_sorted.bed.gz
 The mosaic genotyping can be executed using the following command:
 
 ```sh
-python3 ~/MoSTR-Bulk/src/mosaic_calling.py \  # Run the mosaic genotyping script
+python3 ~/BayesMonSTR-Bulk/src/mosaic_calling.py \  # Run the mosaic genotyping script
     -i ${metadata} \  # Input metadata file like estimation of stutter error step
     -r ${ref} \  # Reference genome FASTA file
     -b ${bed} \  # 0-based STR regions BED file
@@ -150,16 +150,16 @@ python3 ~/MoSTR-Bulk/src/mosaic_calling.py \  # Run the mosaic genotyping script
     -t 1 \  # Number of threads to use for processing, here is TODO list
     -si ${stutter_model} \  # Stutter model file from last step (bgzip compression and tabix indexing)
     -p ${nearby_snp}  # Optional germline variants VCF file (optionally compressed with bgzip and indexed with tabix); if specified, read-based phasing haplotypes will be output
-bgzip ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf
-tabix -p vcf ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
-bcftools sort -Oz -o ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
-tabix -p vcf ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz
+bgzip ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf
+tabix -p vcf ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
+bcftools sort -Oz -o ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
+tabix -p vcf ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz
 ```
 
-If the interval regions are processed in parallel, you should merge all the calling results from the different intervals. The scripts from ~/MoSTR-Bulk/scripts can do that for you (Notice: this step need more memory depends on your mosaic calling files size):
+If the interval regions are processed in parallel, you should merge all the calling results from the different intervals. The scripts from ~/BayesMonSTR-Bulk/scripts can do that for you (Notice: this step need more memory depends on your mosaic calling files size):
 
 ```sh
-bash ~/MoSTR-Bulk/scripts/merge_interval_results.sh \
+bash ~/BayesMonSTR-Bulk/scripts/merge_interval_results.sh \
 $input_dir \  # A directory include all mosaic calling results
 $output_dir \  # The directory you want to save the merged calling results
 $prefix  # The saved filename prefix
@@ -185,24 +185,24 @@ $prefix  # The saved filename prefix
 
 ### 3. Extraction of population information (all samples)
 ---
-If you have more than **20 unrelated samples**, we recommend leveraging population data to filter MoSTR-Bulk outputs. This helps **eliminate common germline variants and recurrent noise**, such as mapping errors and stutter errors.
+If you have more than **20 unrelated samples**, we recommend leveraging population data to filter BayesMonSTR-Bulk outputs. This helps **eliminate common germline variants and recurrent noise**, such as mapping errors and stutter errors.
 However, if mosaic STR mutations **recur in your samples due to selective advantage of driver mutations** across individuals, population-based filtering may **not be appropriate**. Alternatively, you can apply a lenient threshold in the **initial hard filter step**.
-Below is a script to extract population information from MoSTR-Bulk output:
+Below is a script to extract population information from BayesMonSTR-Bulk output:
 
 ```sh
-python3 ~/MoSTR-Bulk/src/extract_pop_infors.py \
-  -v ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \  # MoSTR-Bulk Genotyping Output
-  -o ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt
-bgzip ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt
-tabix -p bed ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz
-bgzip ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt
-tabix -p bed ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz
+python3 ~/BayesMonSTR-Bulk/src/extract_pop_infors.py \
+  -v ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \  # BayesMonSTR-Bulk Genotyping Output
+  -o ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt
+bgzip ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt
+tabix -p bed ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz
+bgzip ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt
+tabix -p bed ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz
 ```
 - **Parameters**:
 
 | Parameter | Description |
 |-----------|-------------|
-| `-v ` | **VCF file path**. Path to the MoSTR-Bulk Genotyping output VCF file containing mosaic STR variant information. This VCF file should contain the genotyping results. |
+| `-v ` | **VCF file path**. Path to the BayesMonSTR-Bulk Genotyping output VCF file containing mosaic STR variant information. This VCF file should contain the genotyping results. |
 | `-o ` | **Output file path**. The output file where population information will be extracted and stored. |
 
 ### 4. Initial Hard Filtering for Each Sample (single sample)
@@ -210,10 +210,10 @@ tabix -p bed ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_
 To reduce the number of loci for feature extraction, we can apply initial hard filters to remove **potential germline variants or artifact loci** beforehand (Notice: this step takes up several hours in single thread because it's too slow for frequently fetching single STR locus from bed or fasta use pysam).
 
 ```sh
-python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
-  -v ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
+python3 ~/BayesMonSTR-Bulk/src/initial_hard_filter.py \
+  -v ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
   -s Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1 \
-  -o ~/MoSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1.bed \
+  -o ~/BayesMonSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1.bed \
   -p 0.9 \
   -m 3 \
   -u 0.8 \
@@ -222,8 +222,8 @@ python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
   -ms 18 \
   -pgi 0.3 \
   -r 0.3 \
-  -bf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
-  -rf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
+  -bf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
+  -rf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
   -cf 0.2 \
   -ep your_str_population_panel \
   -b your_bgzip_bed_for_exclude_specific_regions \
@@ -234,7 +234,7 @@ python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
 
 | Parameter | Description | Required/Optional |
 |-----------|-------------|------------------|
-| `-v, --vcf_file` | Path to the input VCF file containing mosaic STR variants from MoSTR-Bulk. | **Required** |
+| `-v, --vcf_file` | Path to the input VCF file containing mosaic STR variants from BayesMonSTR-Bulk. | **Required** |
 | `-s, --sample_name` | Name of the sample to be processed. | **Required** |
 | `-o, --output_file` | Path to the output file where filtered loci will be stored. | **Required** |
 | `-p, --posterior_filter` | Posterior probability threshold (default: `0.9`). A lower threshold is recommended for low-depth samples. | **Required** |
@@ -258,17 +258,17 @@ python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
 ---
 **Locus-based features** and **read-level features** are extracted from the genotyping results for the subsequent prediction step.
 ```sh
-python3 ~/MoSTR-Bulk/src/extract_features.py \
-      -i ~/MoSTR-Bulk/demo/extract_features_test/metadata/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.csv \
+python3 ~/BayesMonSTR-Bulk/src/extract_features.py \
+      -i ~/BayesMonSTR-Bulk/demo/extract_features_test/metadata/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.csv \
       -r your_reference_genome_FASTA_file \
-      -b ~/MoSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1_sorted.bed.gz \
-      -o ~/MoSTR-Bulk/demo/extract_features_test/extract_features_output \
+      -b ~/BayesMonSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1_sorted.bed.gz \
+      -o ~/BayesMonSTR-Bulk/demo/extract_features_test/extract_features_output \
       -l extract_features_log \
       -lf \
-      -vi ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
-      -si ~/MoSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz \
+      -vi ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
+      -si ~/BayesMonSTR-Bulk/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz \
       -fo feature_output_1 \
-      -ma ~/MoSTR-Bulk/resource/hg38_k24_k100_mappability.bed.gz \
+      -ma ~/BayesMonSTR-Bulk/resource/hg38_k24_k100_mappability.bed.gz \
       -c chr1 \
       -s 30216700 \
       -e 30216750
@@ -292,16 +292,16 @@ python3 ~/MoSTR-Bulk/src/extract_features.py \
 | `-e` | **End coordinate**. The ending coordinate of the region of interest (e.g., `30216750`). |
 
 
-### 6. MoSTR-Bulk prediction
+### 6. BayesMonSTR-Bulk prediction
 ---
-The final set of predicted mosaic STR mutations is obtained by applying a **random forest model** and a series of **hard filters** in MoSTR-Bulk.
+The final set of predicted mosaic STR mutations is obtained by applying a **random forest model** and a series of **hard filters** in BayesMonSTR-Bulk.
 ```sh
-python3 ~/MoSTR-Bulk/src/MoSTR-Bulk_prediction.py \
--i ~/MoSTR-Bulk/demo/extract_features_test/extract_features_output/feature_extract_results/feature_output_1_Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_sorted_chr1_30216700_30216750_feature_output.csv \
--o ~/MoSTR-Bulk/demo/MoSTR-Bulk_prediction_test/MoSTR-Bulk_prediction_output/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.txt \
+python3 ~/BayesMonSTR-Bulk/src/BayesMonSTR-Bulk_prediction.py \
+-i ~/BayesMonSTR-Bulk/demo/extract_features_test/extract_features_output/feature_extract_results/feature_output_1_Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_sorted_chr1_30216700_30216750_feature_output.csv \
+-o ~/BayesMonSTR-Bulk/demo/BayesMonSTR-Bulk_prediction_test/BayesMonSTR-Bulk_prediction_output/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.txt \
 -l both \
--mm ~/MoSTR-Bulk/model/final_best_random_forest_model_mis_all.pkl \
--mid ~/MoSTR-Bulk/model/final_best_random_forest_model_indel_all.pkl \
+-mm ~/BayesMonSTR-Bulk/model/final_best_random_forest_model_mis_all.pkl \
+-mid ~/BayesMonSTR-Bulk/model/final_best_random_forest_model_indel_all.pkl \
 -r your_reference_genome_FASTA_file \
 -m both
 ```
@@ -318,9 +318,9 @@ python3 ~/MoSTR-Bulk/src/MoSTR-Bulk_prediction.py \
 | `-m` | **Prediction mode**: determines how random forest and hard filter results are used:<br>• `rf`: use only the random forest model for prediction<br>• `hard_filter`: use only hard filtering rules<br>• `both`: require both rf and hard filter to call a site mosaic (default)<br>• `either`: call mosaic if either rf or hard filter predicts mosaic |
 | `-hnf` | **No filter heterozygous**: Compatible with potential clonal mosaic mutations with VAF ≈ 0.5. |
 
-- You can customize the hard filter criteria in ~/MoSTR-Bulk/src/final_hard_filter_config_params.py. Currently, we use a conservative default hard filter condition to maintain sensitivity.
+- You can customize the hard filter criteria in ~/BayesMonSTR-Bulk/src/final_hard_filter_config_params.py. Currently, we use a conservative default hard filter condition to maintain sensitivity.
 
-- MoSTR-Bulk uses four models trained on different datasets to predict mosaic STR mutations:
+- BayesMonSTR-Bulk uses four models trained on different datasets to predict mosaic STR mutations:
 
 | Model Type        | Training Data         | File |
 |-------------------|-----------------------|----------|
@@ -352,16 +352,16 @@ Key Columns from Final Predicted Mosaic Mutations Output:
 
 
 ## Pipeline optimized for paired-samples mode
-We added a paired-samples mode to MoSTR-Bulk. With matched normal samples, this mode helps filter out germline variants more effectively, making it easier to detect true somatic STR mutations. It is also more sensitive for low-VAF mutations. In paired-samples mode, the following parameter changes are applied:
+We added a paired-samples mode to BayesMonSTR-Bulk. With matched normal samples, this mode helps filter out germline variants more effectively, making it easier to detect true somatic STR mutations. It is also more sensitive for low-VAF mutations. In paired-samples mode, the following parameter changes are applied:
 1. Estimation of locus-based stutter model (all samples): unchanged
 2. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples): unchanged
 3. Extraction of population information (all samples): required for paired-samples mode
 4. Initial hard filtering (per sample), parameters adjusted to retain potential clonal mutations:
 ```sh
-python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
-  -v ~/MoSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
+python3 ~/BayesMonSTR-Bulk/src/initial_hard_filter.py \
+  -v ~/BayesMonSTR-Bulk/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
   -s Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1 \
-  -o ~/MoSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1.bed \
+  -o ~/BayesMonSTR-Bulk/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1.bed \
   -p 0 \
   -m 3 \
   -u 1.1 \
@@ -370,8 +370,8 @@ python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
   -ms 150 \
   -pgi 1.1 \
   -r 1.1 \
-  -bf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
-  -rf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
+  -bf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
+  -rf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
   -cf 0 \
   -ep your_str_population_panel \
   -b your_bgzip_bed_for_exclude_specific_regions \
@@ -379,38 +379,38 @@ python3 ~/MoSTR-Bulk/src/initial_hard_filter.py \
   -hnf
 ```
 5. Extraction of features (case sample): unchanged
-6. MoSTR-Bulk prediction, parameters adjusted to retain potential clonal mutations:
+6. BayesMonSTR-Bulk prediction, parameters adjusted to retain potential clonal mutations:
 ```sh
-python3 ~/MoSTR-Bulk/src/MoSTR-Bulk_prediction.py \
--i ~/MoSTR-Bulk/demo/extract_features_test/extract_features_output/feature_extract_results/feature_output_1_Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_sorted_chr1_30216700_30216750_feature_output.csv \
--o ~/MoSTR-Bulk/demo/MoSTR-Bulk_prediction_test/MoSTR-Bulk_prediction_output/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.txt \
+python3 ~/BayesMonSTR-Bulk/src/BayesMonSTR-Bulk_prediction.py \
+-i ~/BayesMonSTR-Bulk/demo/extract_features_test/extract_features_output/feature_extract_results/feature_output_1_Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_sorted_chr1_30216700_30216750_feature_output.csv \
+-o ~/BayesMonSTR-Bulk/demo/BayesMonSTR-Bulk_prediction_test/BayesMonSTR-Bulk_prediction_output/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.txt \
 -l both \
--mm ~/MoSTR-Bulk/model/final_best_random_forest_model_mis_all.pkl \
--mid ~/MoSTR-Bulk/model/final_best_random_forest_model_indel_all.pkl \
+-mm ~/BayesMonSTR-Bulk/model/final_best_random_forest_model_mis_all.pkl \
+-mid ~/BayesMonSTR-Bulk/model/final_best_random_forest_model_indel_all.pkl \
 -r your_reference_genome_FASTA_file \
 -m all \
 -hnf
 ```
-7. MoSTR-Bulk paired-samples mode
-MoSTR-Bulk can further exclude potential germline variants using matched normal samples, improving precision. The run parameters are as follows:
+7. BayesMonSTR-Bulk paired-samples mode
+BayesMonSTR-Bulk can further exclude potential germline variants using matched normal samples, improving precision. The run parameters are as follows:
 ```sh
-python3 ~/MoSTR-Bulk/src/MoSTR-Bulk_pairs.py \
+python3 ~/BayesMonSTR-Bulk/src/BayesMonSTR-Bulk_pairs.py \
       -i ${metadata} \
       -v ${vcf_file} \  # Include control sample and case sample
       -n ${normal_sample_name} \
       -c ${case_sample_name} \
-      -rf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
-      -bf ~/MoSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
-      -bo ${MoSTR-Bulk_prediction_output} \
+      -rf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
+      -bf ~/BayesMonSTR-Bulk/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
+      -bo ${BayesMonSTR-Bulk_prediction_output} \
       -re your_reference_genome_FASTA_file \
-      -o ${MoSTR-Bulk_paired_mode_output}
+      -o ${BayesMonSTR-Bulk_paired_mode_output}
 ```
 - **Parameters**:
 
 | Parameter | Description | Required/Optional |
 |-----------|-------------| ----------------- |
 | `-i, --metadata` | containing information about the samples, similar to the stutter error estimation step.  | **Required** |
-| `-v, --vcf_file` | Path to the input VCF file containing mosaic STR variants from MoSTR-Bulk. | **Required** |
+| `-v, --vcf_file` | Path to the input VCF file containing mosaic STR variants from BayesMonSTR-Bulk. | **Required** |
 | `-n, --normal_name` | Normal sample name, consistent with VCF file sample name| **Required** |
 | `-c, --case_name` | Case sample name, consistent with VCF file sample name| **Required** |
 | `-rf, --recurrent_file` | Path to the file containing information on recurrent mutations in the population. | **Required** |
@@ -424,8 +424,8 @@ python3 ~/MoSTR-Bulk/src/MoSTR-Bulk_pairs.py \
 
 
 ## Resources
-The resources in MoSTR-Bulk (~/MoSTR-Bulk/resource) include:
-1. hg38_k24_k100_mappability.bed.gz: Mappability values for kmer=24 and kmer=100, used as features for MoSTR-Bulk prediction.
+The resources in BayesMonSTR-Bulk (~/BayesMonSTR-Bulk/resource) include:
+1. hg38_k24_k100_mappability.bed.gz: Mappability values for kmer=24 and kmer=100, used as features for BayesMonSTR-Bulk prediction.
 2. pop_AF_allchr_noXYM_final_sorted.bed.tar.gz: Sequence-based STR allele population allele frequency data from EnsembleTR (3550 individual calls), used for filtering mutation.
 ```sh
 tar -xzvf pop_AF_allchr_noXYM_final_sorted.bed.tar.gz
@@ -441,9 +441,9 @@ If you encounter problems, please open a [github issue](https://github.com/douym
 
 
 ## Citation
-If you use MoSTR-Bulk in your research, please cite our paper:
+If you use BayesMonSTR-Bulk in your research, please cite our paper:
 
-> [Authors], *MoSTR-Bulk: accurate detection of mosaic mutations at short tandem repeats*, Journal, 2025.
+> [Authors], *BayesMonSTR-Bulk: accurate detection of mosaic mutations at short tandem repeats*, Journal, 2025.
 
 
 ---

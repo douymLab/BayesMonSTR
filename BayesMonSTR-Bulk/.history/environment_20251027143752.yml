@@ -1,4 +1,4 @@
-name: MoSTR-Bulk
+name: BayesMonSTR-Bulk
 channels:
   - bioconda
   - defaults

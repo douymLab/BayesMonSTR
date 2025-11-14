@@ -6,13 +6,13 @@ A toolkit for mosaic STR mutation calling.
 
 run `./INSTALL.sh`.
 
-## MoSTR-SC
+## BayesMonSTR
 
-See [MoSTR-SC](MoSTR-SC/README.md) for details.
+See [BayesMonSTR](BayesMonSTR/README.md) for details.
 
-## MoSTR-Bulk
+## BayesMonSTR-Bulk
 
-See [MoSTR-Bulk](MoSTR-Bulk/README.md) for details.
+See [BayesMonSTR-Bulk](BayesMonSTR-Bulk/README.md) for details.
 
 ## MoSTR-ATAC
 
