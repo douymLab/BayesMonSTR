@@ -28,8 +28,8 @@
 ## Installation
 To set up the environment and install the necessary dependencies, follow the instructions below:
 ```bash
-git clone https://github.com/douymLab/MoSTR.git
-conda env create -f MoSTR/BayesMonSTR-Bulk/environment.yml
+git clone https://github.com/douymLab/BayesMonSTR.git
+conda env create -f BayesMonSTR/BayesMonSTR-Bulk/environment.yml
 conda activate BayesMonSTR-Bulk
 bcftools should be downloaded from https://github.com/samtools/bcftools
 ```
@@ -436,8 +436,8 @@ tabix -p bed pop_AF_allchr_noXYM_final_sorted.bed.gz
 
 
 ## Q&A
-For more details, check the [documentation](https://github.com/your-repo/MoSTR)  (TODO List). 
-If you encounter problems, please open a [github issue](https://github.com/douymLab/MoSTR/issues).
+For more details, check the [documentation](https://github.com/your-repo/BayesMonSTR)  (TODO List). 
+If you encounter problems, please open a [github issue](https://github.com/douymLab/BayesMonSTR/issues).
 
 
 ## Citation
