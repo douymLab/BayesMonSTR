@@ -17,7 +17,7 @@
 BayesMonSTR can be installed directly by
 
 ```shell
-git clone https://github.com/douymLab/MoSTR.git
+git clone https://github.com/douymLab/BayesMonSTR.git
 
 cd BayesMonSTR/
 
@@ -44,7 +44,7 @@ conda create -n BayesMonSTR -y -c conda-forge -c bioconda \
 
 conda activate BayesMonSTR
 
-git clone https://github.com/douymLab/MoSTR.git
+git clone https://github.com/douymLab/BayesMonSTR.git
 
 cd BayesMonSTR/
 
@@ -239,11 +239,11 @@ BayesMonSTR can be ran with Docker as well.
 build docker image by
 
 ```shell
-git clone https://github.com/douymLab/MoSTR.git
+git clone https://github.com/douymLab/BayesMonSTR.git
 
 cd BayesMonSTR/docker
 
-sudo docker build -f docker/Dockerfile -t mostrsc .
+sudo docker build -f docker/Dockerfile -t bayesmonstr .
 ```
 
 run BayesMonSTR by
@@ -256,7 +256,7 @@ sudo docker run -it --rm \
     -v ./demo/:/demo \
     -v ./results:/results \
     -w /demo \
-    mostrsc \
+    bayesmonstr \
     BayesMonSTR \
         -b GRCh37_reference_STR.bed \
         -i metadata.csv \
@@ -273,7 +273,7 @@ sudo docker run -it --rm \
     -v ../demo/:/demo \
     -v ./results:/results \
     -w /demo \
-    mostrsc \
+    bayesmonstr \
     python /scripts/mosaic.py \
         -i /results/str_gt.vcf \
         -o /results

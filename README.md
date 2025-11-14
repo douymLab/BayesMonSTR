@@ -1,4 +1,4 @@
-# MoSTR
+# BayesMonSTR
 
 A toolkit for mosaic STR mutation calling.
 
