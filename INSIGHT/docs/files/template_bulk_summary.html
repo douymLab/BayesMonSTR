@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ report_title }}</title>
+    <style>
+        body { font-family: sans-serif; }
+        .mutation-entry { border: 1px solid #ccc; margin-bottom: 15px; padding: 10px; }
+        .mutation-id { font-weight: bold; font-size: 1.1em; }
+        .details { margin-top: 5px; font-size: 0.9em; color: #555; }
+        img { max-width: 100%; height: auto; display: block; margin-top: 10px; }
+        .error { color: red; }
+        .sampler-info { font-size: 0.8em; color: gray; margin-top: 5px;}
+    </style>
+</head>
+<body>
+    <h1>{{ report_title }}</h1>
+
+    {% for mutation in mutations %}
+    <div class="mutation-entry">
+        <div class="mutation-id">{{ mutation.original_id | default(mutation.mutation_id) }}</div>
+        <div class="details">
+            Location: {{ mutation.chromosome }}:{{ mutation.position }} | Ref: {{ mutation.reference }} | Alt: {{ mutation.alternate }}
+        </div>
+        <div class="sampler-info">
+            Reads Total: {{ mutation.sampler_info.total }}, Sampled: {{ mutation.sampler_info.sampled }}
+             {% if mutation.get('skipped') %} (Plot Skipped/Exists) {% endif %}
+             {% if mutation.get('error') %} <span class="error">Error: {{ mutation.error }}</span> {% endif %}
+        </div>
+        {% if mutation.is_empty %}
+            <p class="error">{{ mutation.note_message }}</p>
+        {% elif mutation.image_base64 %}
+            <img src="data:image/png;base64,{{ mutation.image_base64 }}" alt="Visualization for {{ mutation.mutation_id }}">
+        {% else %}
+             <p class="error">Image data unavailable.</p>
+        {% endif %}
+    </div>
+    {% else %}
+    <p>No mutation sites processed or found.</p>
+    {% endfor %}
+
+</body>
+</html>

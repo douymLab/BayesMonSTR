@@ -1,0 +1,50 @@
+column_name,Name,Description,Range,Quality Indicator,Formula,Group,Level,Type
+id,id,Unique identifier for each STR region,-,-,-,str_info,site,global
+chr,chr,Chromosome number or identifier,-,-,-,position,site,global
+start,start,Starting genomic coordinate of the STR region,-,-,-,position,site,global
+end,end,Ending genomic coordinate of the STR region,-,-,-,position,site,global
+motif,motif,Nucleotide sequence of the STR unit,-,-,-,str_info,site,global
+motif_len,motif_len,Length of the STR repeat unit in base pairs,'1-6',-,-,str_info,site,global
+len,len,Mean STR length across all sequencing reads,-,-,-,str_info,site,global
+mappability,mappability,Mapping quality score for the STR region,0-1,Higher values (near 1) indicate better mapping quality,-,site_stat,site,global
+p1_{ic},p1,Probability of linkage between mosaic mutation allele and haplotype-1,0-1,Extreme values (near 0 or 1) indicate higher confidence in the mosaic variant,-,phasing,site,global
+mo_posterior_{ic},mo_posterior,Posterior probability of the mosaic mutation,0-1,Higher values indicate higher confidence; low values warrant careful examination,-,site_stat,site,global
+mo_posteriors_bb_{ic},mo_posteriors_bb,Beta-binomial test result for mosaic mutation probability,0-1,Higher values indicate higher confidence,-,site_stat,site,global
+ll_ratio_{ic},ll_ratio,Log likelihood ratio test statistic for mosaic mutation detection,>0,Lower values (closer to 0) indicate higher confidence,-,site_stat,site,global
+ll_pval_{ic},ll_pval,P-value from log likelihood ratio test for mosaic mutation,>0,Lower values indicate higher statistical significance,-,site_stat,site,global
+mut_cell_prob_{ic},mut_cell_prob,Binary indicator of mosaic mutant cell status based on somatic posterior probability,0|1,1 indicates confirmed mosaic mutant cell,-,mutant,cell,sample
+mut_info_{ic},mut_info,Detailed mosaic mutation description including: 1) Start position relative to STR region (from -5bp); 2) Mutation length; 3) Mutation type; 4) Reference sequence; 5) Position in non-mutant reads,-,-,-,mutant,site,global
+mut_refalt_{ic},mut_refalt,"Genomic coordinates and sequence changes of the mosaic mutation (Format: chromosome,start,end,reference,alternate)",-,-,-,mutant,site,global
+mut_res_all_{ic},mut_res_all,All possible mosaic mutation configurations (comma-separated list of mut_info format),-,-,-,mutant,site,global
+num_allele_pool_{ic},num_allele_pool,All allele number,-,-,-,mutant,site,global
+is_germ_hom_{ic},is_germ_hom,Germline genotype mutant or Homo genotype mutant,-,-,-,mutant,site,global
+gt_mosaic_{ic},gt_mosaic,"Germline genotype description including mosaic read structure (left flanking, STR region, right flanking) and reference read structure",-,-,-,mutant,site,global
+gt_germline,gt_germline,"Germline genotype description including germline read structure (left flanking, STR region, right flanking) and reference read structure",-,-,-,mutant,site,global
+vaf_list_count_eq_{ic},vaf_list_count_eq,Read count of exact matches to the mosaic mutant allele,>=0,Higher values indicate stronger mosaic variant presence,-,mutant,cell,sample
+vaf_list_eq_{ic},vaf_list_eq,Variant allele frequency (VAF) of exact matches to the mosaic mutant allele,>=0,Higher values indicate stronger mosaic variant presence,-,mutant,cell,sample
+ref_mm_baseQ_{ic},ref_mm_baseQ,Average base quality at mismatch positions in reference reads,>=0,Higher values indicate better sequence quality,-,mutant,site,global
+alt_mm_baseQ_{ic},alt_mm_baseQ,Average base quality at mismatch positions in mosaic mutant reads,>=0,Higher values indicate better sequence quality,-,mutant,site,global
+tot_sc_dp_{ic},tot_sc_dp,Total read depth across all single cells,>=0,Higher values indicate better coverage,-,reads_count,site,global
+tot_bulk_dp_{ic},tot_bulk_dp,Total read depth in bulk sample,>=0,Higher values indicate better coverage,-,reads_count,site,global
+alt_dp,alt_dp,Mosaic variant allele read depth/Reference allele read depth (mutant/reference),-,Higher values indicate stronger evidence,-,reads_count,cell,sample
+dp_list_{ic},dp_list,Read depth distribution across individual single cells,>=0,Higher values indicate better coverage,-,reads_count,cell,sample
+prop_sc_spn_read_{ic},prop_sc_spn_read,Proportion of spanning reads in single cells,0-1,Higher values indicate better quality,-,reads_count,site,global
+prop_sc_spn_k_read_{ic},prop_sc_spn_k_read,Proportion of mosaic variant reads among spanning reads in single cells,0-1,Higher values indicate stronger evidence,-,reads_count,site,global
+vaf_bulk_{ic},vaf_bulk,Mosaic variant allele frequency in bulk sample,0-1,Higher values indicate stronger evidence,-,reads_count,site,global
+vaf_list_allele_{ic},vaf_list_allele,Mosaic variant allele frequency (mutant/reference ratio) per cell,0-1,Higher values indicate stronger variant presence,-,reads_count,cell,sample
+sc_strand_p_{ic},sc_strand_p,Strand bias p-value in single-cell data,0-1,Higher values indicate less strand bias,-,strand,site,global
+sc_strand_stats_{ic},sc_strand_stats,Strand bias odds ratio in single-cell data,0-1,Higher values indicate less strand bias,-,strand,site,global
+hSNP_{ic},hSNP,A nearby solid hSNP,-,-,-,snp,site,global
+hSNP_start_{ic},hSNP_start,The start position of hSNP,-,-,,snp,site,global
+prop_all_spn_k_read_{ic},prop_all_spn_k_read,Ratio of spanning mosaic variant reads to total mosaic variant reads,0-1,Higher values indicate better quality,spanning k / all k,phasing_count,site,global
+phasable_k_{ic},phasable_k,Indicator of presence of phaseable mosaic variant reads,bool,True indicates presence of phasing information,-,phasing_count,site,global
+phasing_block_{ic},phasing_block,Phasing matrix for mosaic mutant cells (diagonal values for two haplotype groups),-,First group diagonal >0 and second group diagonal = 0 indicates proper phasing,-,phasing_count,site,global
+phasing_check_{ic},phasing_check,Per-cell phasing matrix (diagonal values for two haplotype groups),-,First group diagonal >0 and second group diagonal = 0 indicates proper phasing,-,phasing_count,cell,sample
+phased_k_vaf_{ic},phased_k_vaf,Variant allele frequency of phaseable mosaic variant reads,0-1,Higher values indicate stronger evidence,-,phasing_count,site,global
+dis_prop_bulk_{ic},discordant_read_rate_bulk,Discordant rate proportion between mosaic variant and haplotype-1 in bulk sample,0-1,Lower values (≤0.01) indicate higher confidence,k_h1/(k_h1+j_h1),phasing_stat,site,global
+dis_prop_sc_{ic},discordant_read_rate_sc,Discordant rate proportion between mosaic variant and haplotype-1 in merged single cells,0-1,Lower values (≤0.01) indicate higher confidence,k_h1/(k_h1+j_h1),phasing_stat,site,global
+dis_prop_mut_{ic},discordant_read_rate_mut_cell,Discordant rate proportion between mosaic variant and haplotype-1 in merged mutant cells,0-1,Lower values (≤0.01) indicate higher confidence,k_h1/(k_h1+j_h1),phasing_stat,site,global
+dis_amp_{ic},amp_error_rate_pseudo,Amplification error rate in mosaic mutant cells (merged pseudo-bulk),0-1,Lower values (≤0.01) indicate higher quality,j_h2/(j_h2+k_h2),phasing_stat,site,global
+dis_amp_avg_{ic},amp_error_rate_avg,Mean amplification error rate across mosaic mutant single cells,0-1,Lower values (≤0.01) indicate higher quality,j_h2/(j_h2+k_h2),phasing_stat,site,global
+dis_prop_k_{ic},phasing_score_k_pseudo,Proportion of reads supporting mosaic variant on same haplotype (merged pseudo-bulk),0-1,Lower values (≤0.01) indicate higher confidence,k_h1/(k_h1+k_h2),phasing_stat,site,global
+dis_prop_k_avg_{ic},phasing_score_k_avg,Mean proportion of reads supporting mosaic variant on same haplotype across single cells,0-1,Lower values (≤0.01) indicate higher confidence,k_h1/(k_h1+k_h2),phasing_stat,site,global

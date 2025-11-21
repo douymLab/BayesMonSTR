@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STR Visualization Report - {{ str_id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .image-container { display: flex; flex-direction: column; gap: 20px; }
+        .image-card { border: 1px solid #ddd; border-radius: 5px; padding: 10px; width: 95%; margin-bottom: 20px; }
+        .image-card img { max-width: 100%; height: auto; display: block; }
+        .image-meta { margin-top: 10px; font-size: 0.9em; }
+        .image-meta table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .image-meta table td { padding: 4px; border-bottom: 1px solid #eee; word-wrap: break-word; overflow-wrap: break-word; }
+        .image-meta table td:first-child { font-weight: bold; width: 120px; }
+        h1, h2, h3 { color: #333; }
+        .success { color: green; }
+        .error { color: red; }
+        .value-highlight-0 { color: blue; }
+        .value-highlight-1 { color: red; }
+        .toc-highlight { color: red; font-weight: bold; }
+        .missing-image { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background-color: #f8f9fa; 
+            border: 2px dashed #ccc; 
+            height: 300px; 
+            width: 100%; 
+            color: #666;
+            font-size: 1.2em;
+            text-align: center;
+        }
+        .sort-info {
+            font-size: 0.8em;
+            color: #666;
+            float: right;
+        }
+        /* 控制面板 */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .control-btn {
+            padding: 6px 12px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .control-btn:hover {
+            background-color: #e0e0e0;
+        }
+        /* 为特殊列添加格式保留样式 */
+        .formula-value, .special-value {
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background-color: #f8f8f8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #eee;
+            font-size: 0.9em;
+            max-width: 100%;
+            display: inline-block;
+        }
+        /* 侧边栏和TOC样式 */
+        .page-container {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .sidebar-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 300px;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed {
+            width: 40px;
+        }
+        .sidebar {
+            width: 300px;
+            height: 100%;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed .sidebar {
+            width: 0;
+            overflow: hidden;
+        }
+        .toc {
+            height: 100%;
+            padding: 20px;  /* Increased padding for all sides */
+            overflow-y: auto;
+            width: 300px;
+        }
+        /* Add padding to the TOC list so items aren't flush with the border */
+        .toc ul {
+            list-style: none;
+            padding-left: 10px;  /* Provides an indent for list items */
+        }
+        .toc li {
+            margin-bottom: 8px;  /* Space between items */
+        }
+        
+        /* Style the links inside the TOC */
+        .toc a {
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            color: #0066cc;
+            display: inline-block;
+            border-left: 3px solid transparent;
+        }
+        .toc a:hover {
+            background-color: #e0e0e0;
+            text-decoration: none;
+        }
+        /* ======= Refined Sidebar Toggle Button ======= */
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;      /* Adjusted to move further inside the sidebar */
+            right: 20px;    /* Gives a consistent margin from the edge */
+            width: 35px;
+            height: 35px;
+            background: #0066cc;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 101;
+            transition: transform 0.3s ease, right 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed .sidebar-toggle {
+            transform: rotate(180deg);
+        }
+        .main-content {
+            margin-left: 300px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            width: calc(100% - 300px);
+            max-width: 100%;
+        }
+        .sidebar-wrapper.collapsed ~ .main-content {
+            margin-left: 40px;
+            width: calc(100% - 40px);
+        }
+        /* ======= Improved Collapsible TOC Group Header ======= */
+        .toc-group-header {
+            display: flex;
+            align-items: center; /* Added align-items */
+            justify-content: space-between;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #343a40;
+            padding: 8px 10px;          /* Adds padding to give breathing room */
+            border-radius: 5px;         /* Softens the corners */
+            background-color: #f8f9fa;    /* Light background to distinguish the header */
+            transition: background-color 0.3s ease;
+        }
+        .toc-group-header:hover {
+            background-color: #e8e8e8;
+        }
+        .toc-group-header i {
+            font-size: 1em;
+            margin-left: 10px;
+            transition: transform 0.3s ease;
+        }
+        /* Optional: Rotate the collapse icon when collapsed */
+        /* 
+        .toc-group-items.collapsed ~ .toc-group-header i {
+            transform: rotate(-90deg);
+        }
+        */
+        .toc-group-items {
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        .toc-group-items.collapsed {
+            display: none;
+        }
+        
+        /* Sample title styling */
+        .sample-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 1.4em;
+        }
+        
+        /* TOC Link Styles - Regular links */
+        .toc a {
+            text-decoration: none;
+            color: #0066cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+            display: inline-block;
+            border-left: 3px solid transparent;
+            margin: 2px 0;
+        }
+        
+        .toc a:hover {
+            background-color: #e0e0e0;
+            text-decoration: none;
+        }
+        
+        /* 图片样式和查看器 */
+        .image-card img {
+            cursor: zoom-in;
+            transition: border-color 0.2s;
+        }
+        .image-card img:hover {
+            border: 2px solid #0066cc;
+        }
+        .fullscreen-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1050;
+            display: none;
+        }
+        .viewer-container {
+            width: 100%;
+            height: 100%;
+        }
+        .close-viewer {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            z-index: 1060;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .viewer-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1060;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: white;
+        }
+        .viewer-control-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .viewer-control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 1059;
+        }
+        .image-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            z-index: 1060;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 968px) {
+            .sidebar-wrapper {
+                transform: translateX(-100%);
+                width: 80%;
+                max-width: 300px;
+            }
+            .sidebar-wrapper.active {
+                transform: translateX(0);
+                box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            }
+            .sidebar {
+                width: 100%;
+            }
+            .sidebar-toggle {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 15px;
+            }
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 95;
+            }
+            .sidebar-wrapper.active ~ .overlay {
+                display: block;
+            }
+            .mobile-menu-toggle {
+                display: block;
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                background: #0066cc;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 1020;
+                cursor: pointer;
+            }
+        }
+        @media (min-width: 769px) {
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+        /* Basic table styling */
+        table {
+            width: 100%; /* Changed from auto to 100% to better fit the layout */
+            border-collapse: collapse;
+            margin: 10px 0; /* Adjusted margin */
+            table-layout: fixed;  /* Changed to fixed for better control */
+        }
+        th, td {
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: middle;
+            border: 1px solid #ddd;
+            word-wrap: break-word; /* Added for wrapping long text */
+        }
+        /* If you prefer ellipsis for overflow */
+        /* 
+        td {
+            white-space: nowrap;         
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        */
+        .highlighted-cell {
+            border: 2px solid red;
+            background-color: #fff0f0;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);
+        }
+        
+        .highlight-text {
+            color: red;
+            font-weight: bold;
+        }
+        
+        /* Ensure TOC highlights take precedence over link styling */
+        .toc a.toc-highlight,
+        .toc-highlight {
+            color: red;
+            font-weight: bold;
+        }
+        
+        /* Override hover effect for highlighted TOC items */
+        .toc a.toc-highlight:hover {
+            color: red;
+            background-color: rgba(255, 0, 0, 0.15);
+            text-decoration: none;
+            cursor: pointer;  /* Keep the pointer cursor */
+        }
+        
+        /* Completely remove link styling for highlighted TOC entries */
+        .toc a.toc-highlight:link,
+        .toc a.toc-highlight:visited,
+        .toc a.toc-highlight:active {
+            color: red;
+            text-decoration: none;
+        }
+    </style>
+    <!-- Dynamic styles will be applied inline -->
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- OpenSeadragon for handling very large images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+</head>
+<body>
+    <div class="page-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar-wrapper" id="sidebarWrapper">
+            <div class="sidebar">
+                <div class="toc">
+                    <h3 class="mb-3">Contents</h3>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#str-info" class="text-decoration-none">STR Locus Information</a></li>
+                        {% if global_data_rows_flat %}
+                        <li class="mb-2"><a href="#str-data" class="text-decoration-none">STR Locus Data</a></li>
+                        {% endif %}
+                        <li class="mb-2">
+                            <div class="toc-group-header" onclick="toggleTocGroup(this)">
+                                <span>Sample Visualization</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="toc-group-items">
+                                <ul class="list-unstyled ms-3 mt-2">
+                                    {% for task in tasks %}
+                                    {% set ns = namespace(has_mut_prob_1=false) %}
+                                    {% if task.sample_data_rows_flat %}
+                                        {% for row in task.sample_data_rows_flat %}
+                                            {% if (row.attribute == 'mut_cell_prob' or row.attribute.startswith('mut_cell_prob_')) and row.value|string == '1' %}
+                                                {% set ns.has_mut_prob_1 = true %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    <li class="mb-1">
+                                       <a href="#sample-{{ loop.index }}" class="text-decoration-none {% if ns.has_mut_prob_1 %}toc-highlight{% endif %}" {% if ns.has_mut_prob_1 %}style="color: {{ highlight_color|default('red') }};"{% endif %}>
+                                           {{ task.individual_code }}_{{ task.sample_name }}
+                                       </a>
+                                    </li>
+                                {% endfor %}                                
+                                </ul>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+        </div>
+        
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <div id="str-info" class="header">
+                <h1>STR Visualization Report - {{ str_id }}</h1>
+                <p><strong>Metadata File:</strong> {{ metadata_file }}</p>
+                <p><strong>Database File:</strong> {{ database_file }}</p>
+                <p><strong>Generation Time:</strong> {{ generation_time }}</p>
+                {% if embed_images %}
+                <p><strong>Image Format:</strong> Embedded Base64 (Self-contained report)</p>
+                {% else %}
+                <p><strong>Image Format:</strong> External Links (Requires image files)</p>
+                {% endif %}
+                {% if is_sorted %}
+                <p class="sort-info">Sorted by sort value in metadata file (ascending)</p>
+                {% endif %}
+            </div>
+            
+            {% if global_data_rows_flat %}
+            <div id="str-data" class="str-data">
+                <h2>STR Locus Data</h2>
+                <table>
+                    <colgroup>
+                        <col style="width: 20%;"> <!-- Attribute -->
+                        <col style="width: 30%;"> <!-- Value -->
+                        <col style="width: 50%;"> <!-- Description -->
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Value</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in global_data_rows_flat %}
+                        <tr>
+                            <td>{{ row.attribute }}</td>
+                            <td>{{ row.value }}</td>
+                            <td>{{ row.description }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            <h2>Visualization Results</h2>
+            
+            <div class="image-container">
+            {% for task in tasks %}
+            {% set ns = namespace(has_mut_prob_1=false) %}
+            {% if task.sample_data_rows_flat %}
+                 {% for row in task.sample_data_rows_flat %}
+                     {% if (row.attribute == 'mut_cell_prob' or row.attribute.startswith('mut_cell_prob_')) and row.value|string == '1' %}
+                         {% set ns.has_mut_prob_1 = true %}
+                     {% endif %}
+                 {% endfor %}
+            {% endif %}
+            <div id="sample-{{ loop.index }}" class="image-card {% if ns.has_mut_prob_1 %}highlighted-cell{% endif %}" 
+                 {% if ns.has_mut_prob_1 %}style="border: 2px solid {{ highlight_color|default('red') }}; background-color: {{ highlight_bg_color|default('#fff0f0') }};"{% endif %}>
+                <h3 class="sample-title {% if ns.has_mut_prob_1 %}highlight-text{% endif %}" 
+                    {% if ns.has_mut_prob_1 %}style="color: {{ highlight_color|default('red') }};"{% endif %}>
+                    {{ task.individual_code }}_{{ task.sample_name }}
+                </h3>
+                {% if task.excluded %}
+                    <div style="color: orange; font-weight: bold; margin-bottom: 8px;">
+                        Excluded Sample{% if task.excluded_reason %} (Reason: {{ task.excluded_reason }}){% endif %}
+                    </div>
+                {% endif %}
+                    {% if task.status == 'missing' %}
+                    <div class="missing-image">
+                        <div>
+                            <p>This location image does not exist {{task.image_path}} </p>
+                            <p>Sample: {{ task.individual_code }}_{{ task.sample_name }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                        {% if embed_images and task.base64_image %}
+                        <img src="data:image/png;base64,{{ task.base64_image }}" 
+                             alt="STR visualization for {{ task.individual_code }}_{{ task.sample_name }}"
+                             data-title="{{ task.individual_code }}_{{ task.sample_name }}"
+                             data-image-id="{{loop.index}}"
+                             onclick="openImageViewer(this)">
+                        {% else %}
+                        <img src="{{ task.abs_image_path }}" 
+                             alt="STR visualization for {{ task.individual_code }}_{{ task.sample_name }}"
+                             data-title="{{ task.individual_code }}_{{ task.sample_name }}"
+                             data-image-id="{{loop.index}}"
+                             onclick="openImageViewer(this)">
+                        {% endif %}
+                    {% endif %}
+                    <div class="image-meta">
+                        <strong class="{% if has_mut_prob_1 %}highlight-text{% endif %}">Sample Name:</strong> {{ task.sample_name }} | <strong>Sample Type:</strong> {{ task.pro_type }} | <strong>Individual Code:</strong> {{ task.individual_code }}
+                        {% if task.sort_value != 'N/A' %}
+                        <strong>Sort Value:</strong> {{ task.sort_value }}
+                        {% endif %}
+                        <div class="file-path">
+                            <strong>BAM File:</strong> <a href="{{ task.bam_path }}" target="_blank">{{ task.bam_path }}</a>
+                        </div>
+                        
+                        {% if task.sample_data_rows_flat %}
+                        <div class="sample-data">
+                            <!-- Replaced ag-Grid with standard table -->
+                            <table>
+                                <colgroup>
+                                    <col style="width: 20%;"> <!-- Attribute -->
+                                    <col style="width: 30%;"> <!-- Value -->
+                                    <col style="width: 50%;"> <!-- Description -->
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Attribute</th>
+                                        <th>Value</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in task.sample_data_rows_flat %}
+                                    <tr>
+                                        <td>{{ row.attribute }}</td>
+                                        <td>
+                                            {% if row.attribute == 'mut_cell_prob' or row.attribute.startswith('mut_cell_prob_') %}
+                                                {% if row.value|string == '1' %}
+                                                    <span class="value-highlight-1" style="color: {{ highlight_color|default('red') }};">{{ row.value }}</span>
+                                                {% elif row.value|string == '0' %}
+                                                    <span class="value-highlight-0">{{ row.value }}</span>
+                                                {% else %}
+                                                    {{ row.value }}
+                                                {% endif %}
+                                            {% else %}
+                                                {{ row.value }}
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ row.description }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        
+        <!-- 移动端菜单遮罩 -->
+        <div class="overlay" onclick="toggleSidebar()"></div>
+        
+        <!-- 移动端菜单按钮 -->
+        <div class="mobile-menu-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </div>
+    </div>
+    
+    <!-- 全屏图片查看器 -->
+    <div id="fullscreenViewer" class="fullscreen-viewer">
+        <div class="close-viewer" onclick="closeViewer()">
+            <i class="fas fa-times"></i>
+        </div>
+        <div id="imageTitle" class="image-title"></div>
+        <div id="loadingIndicator" class="loading-indicator">
+            <i class="fas fa-spinner fa-spin me-2"></i>Loading High Resolution Image...
+        </div>
+        <div id="viewerContainer" class="viewer-container"></div>
+        <div class="viewer-controls">
+            <button class="viewer-control-btn" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
+            <span id="zoomLevel">100%</span>
+            <button class="viewer-control-btn" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
+            <button class="viewer-control-btn" onclick="resetView()"><i class="fas fa-expand"></i></button>
+            <button class="viewer-control-btn" onclick="toggleFullscreen()"><i class="fas fa-compress" id="fullscreenIcon"></i></button>
+        </div>
+    </div>
+
+    <script>
+    
+    // ========== Sidebar Functionality ==========
+    function toggleSidebar() {
+        const sidebarWrapper = document.getElementById('sidebarWrapper');
+        if (window.innerWidth <= 768) {
+            // Mobile logic
+            sidebarWrapper.classList.toggle('active');
+        } else {
+            // Desktop logic
+            sidebarWrapper.classList.toggle('collapsed');
+        }
+    }
+    
+    // TOC group expand/collapse
+    function toggleTocGroup(element) {
+        const items = element.nextElementSibling;
+        const icon = element.querySelector('i');
+        
+        items.classList.toggle('collapsed');
+        if (items.classList.contains('collapsed')) {
+            icon.className = 'fa-solid fa-chevron-right';
+        } else {
+            icon.className = 'fa-solid fa-chevron-down';
+        }
+    }
+    
+    // Remember sidebar state
+    function saveStateToLocalStorage() {
+        const sidebarWrapper = document.getElementById('sidebarWrapper');
+        if (window.innerWidth > 768) {
+            localStorage.setItem('sidebarCollapsed', sidebarWrapper.classList.contains('collapsed'));
+        }
+    }
+    
+    // Load sidebar state
+    function loadStateFromLocalStorage() {
+        if (window.innerWidth > 768) {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const sidebarWrapper = document.getElementById('sidebarWrapper');
+            if (isCollapsed) {
+                sidebarWrapper.classList.add('collapsed');
+            }
+        }
+    }
+    
+    // Window resize handling
+    window.addEventListener('resize', function() {
+        const sidebarWrapper = document.getElementById('sidebarWrapper');
+        if (window.innerWidth > 768) {
+            sidebarWrapper.classList.remove('active');
+        } else {
+            sidebarWrapper.classList.remove('collapsed');
+        }
+    });
+    
+    // ========== Image Viewer Functionality ==========
+    let viewer = null;
+    let isFullscreen = true;
+    
+    function openImageViewer(imgElement) {
+        const fullscreenViewer = document.getElementById('fullscreenViewer');
+        const imageTitle = document.getElementById('imageTitle');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        
+        // Set image title
+        imageTitle.textContent = imgElement.dataset.title || '';
+        
+        // Show loading indicator and container
+        loadingIndicator.style.display = 'block';
+        fullscreenViewer.style.display = 'block';
+        
+        // Prevent scrolling
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize OpenSeadragon viewer
+        initializeViewer(imgElement.src, imgElement.dataset.title);
+        
+        // Capture ESC key to close
+        document.addEventListener('keydown', handleKeyDown);
+    }
+    
+    function initializeViewer(imageSource, title) {
+        // Clear previous viewer
+        if (viewer) {
+            viewer.destroy();
+            viewer = null;
+        }
+        
+        // Create new viewer
+        viewer = OpenSeadragon({
+            id: "viewerContainer",
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+            tileSources: {
+                type: 'image',
+                url: imageSource,
+                buildPyramid: true,
+                crossOriginPolicy: 'Anonymous'
+            },
+            showNavigationControl: false,  // We will use custom controls
+            showNavigator: true,           // Show bottom-right navigation thumbnail
+            navigatorPosition: "BOTTOM_RIGHT",
+            navigatorSizeRatio: 0.15,      // Navigator size ratio
+            navigatorBorderColor: "#fff",
+            navigatorDisplayRegionColor: "#ff0000",
+            maxZoomPixelRatio: 5,
+            minZoomImageRatio: 0.8,
+            zoomPerClick: 1.5,
+            animationTime: 0.5,
+            blendTime: 0.1,
+            immediateRender: true,
+            wrapHorizontal: false,
+            showRotationControl: false,
+            gestureSettingsMouse: {
+                scrollToZoom: true,
+                clickToZoom: true,
+                dblClickToZoom: false
+            }
+        });
+        
+        // Listen for load complete event
+        viewer.addHandler('open', function() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            updateZoomLevel();
+        });
+        
+        // Listen for zoom event
+        viewer.addHandler('zoom', function() {
+            updateZoomLevel();
+        });
+        
+        // Add error handling
+        viewer.addOnceHandler('open-failed', function(event) {
+            console.error('OpenSeadragon open failed:', event);
+            document.getElementById('loadingIndicator').innerHTML = 
+                '<i class="fas fa-exclamation-triangle me-2"></i>Image loading failed.';
+        });
+    }
+    
+    function closeViewer() {
+        const fullscreenViewer = document.getElementById('fullscreenViewer');
+        fullscreenViewer.style.display = 'none';
+        
+        // Restore scrolling
+        document.body.style.overflow = '';
+        
+        // Remove keyboard listener
+        document.removeEventListener('keydown', handleKeyDown);
+        
+        // Destroy viewer to release resources
+        if (viewer) {
+            viewer.destroy();
+            viewer = null;
+        }
+    }
+    
+    function handleKeyDown(e) {
+        if (e.key === 'Escape') {
+            closeViewer();
+        } else if (e.key === '+' || e.key === '=') {
+            zoomIn();
+        } else if (e.key === '-') {
+            zoomOut();
+        } else if (e.key === '0') {
+            resetView();
+        }
+    }
+    
+    function zoomIn() {
+        if (viewer) {
+            viewer.viewport.zoomBy(1.5);
+            updateZoomLevel();
+        }
+    }
+    
+    function zoomOut() {
+        if (viewer) {
+            viewer.viewport.zoomBy(0.667);
+            updateZoomLevel();
+        }
+    }
+    
+    function resetView() {
+        if (viewer) {
+            viewer.viewport.goHome();
+            updateZoomLevel();
+        }
+    }
+    
+    function toggleFullscreen() {
+        const viewerElement = document.getElementById('fullscreenViewer');
+        const icon = document.getElementById('fullscreenIcon');
+        
+        if (!isFullscreen) {
+            if (viewerElement.requestFullscreen) {
+                viewerElement.requestFullscreen();
+            } else if (viewerElement.webkitRequestFullscreen) {
+                viewerElement.webkitRequestFullscreen();
+            } else if (viewerElement.msRequestFullscreen) {
+                viewerElement.msRequestFullscreen();
+            }
+            icon.className = 'fas fa-compress';
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            icon.className = 'fas fa-expand';
+        }
+        
+        isFullscreen = !isFullscreen;
+    }
+    
+    function updateZoomLevel() {
+        if (viewer && viewer.viewport) {
+            const zoomFactor = Math.round(viewer.viewport.getZoom() * 100);
+            document.getElementById('zoomLevel').textContent = zoomFactor + '%';
+        }
+    }
+    
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    function handleFullscreenChange() {
+        const icon = document.getElementById('fullscreenIcon');
+        if (document.fullscreenElement) {
+            icon.className = 'fas fa-compress';
+            isFullscreen = true;
+        } else {
+            icon.className = 'fas fa-expand';
+            isFullscreen = false;
+        }
+    }
+    </script>
+</body>
+</html> 

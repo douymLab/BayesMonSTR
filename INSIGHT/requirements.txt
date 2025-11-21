@@ -1,0 +1,13 @@
+duckdb
+pysam
+requests
+numpy
+scipy
+Pillow
+cairosvg
+pydantic
+psutil
+tqdm
+jinja2
+PyYAML
+pandas

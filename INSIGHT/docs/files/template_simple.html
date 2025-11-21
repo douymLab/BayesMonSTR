@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insight Report: {{region_id}}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- OpenSeadragon for handling very large images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            overflow-x: hidden;
+            padding: 0;
+            margin: 0;
+        }
+        /* 改进的TOC布局 - 固定位置 */
+        .page-container {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .sidebar-wrapper {
+            position: fixed; /* 改为固定定位 */
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 250px;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed {
+            width: 40px; /* 收缩时保留空间给按钮 */
+        }
+        .sidebar {
+            width: 250px;
+            height: 100%;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed .sidebar {
+            width: 0;
+            overflow: hidden;
+        }
+        .toc {
+            height: 100%;
+            padding: 20px 15px;
+            overflow-y: auto;
+            width: 250px;
+        }
+        .sidebar-toggle {
+            position: absolute;
+            top: 15px;
+            right: -20px;
+            width: 30px;
+            height: 30px;
+            background: #0d6efd;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 101;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-wrapper.collapsed .sidebar-toggle {
+            transform: rotate(180deg);
+        }
+        .main-content {
+            margin-left: 250px; /* 主内容区域左侧留出侧边栏宽度 */
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            width: calc(100% - 250px);
+            max-width: 100%;
+        }
+        .sidebar-wrapper.collapsed ~ .main-content {
+            margin-left: 40px; /* 侧边栏收缩时调整左边距 */
+            width: calc(100% - 40px);
+        }
+        .toc-group-header {
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #343a40;
+        }
+        .toc-group-items {
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        .toc-group-items.collapsed {
+            display: none;
+        }
+        /* 保持原有样式 */
+        .cell-title {
+            scroll-margin-top: 20px;
+        }
+        .region-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .error-message {
+            color: #dc3545;
+            font-style: italic;
+        }
+        /* 图片样式 */
+        .cell-image {
+            cursor: zoom-in;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+        .cell-image:hover {
+            border-color: #0d6efd;
+        }
+        /* OpenSeadragon Viewer容器 */
+        .fullscreen-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1050;
+            display: none;
+        }
+        .viewer-container {
+            width: 100%;
+            height: 100%;
+        }
+        .close-viewer {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            z-index: 1060;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .viewer-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1060;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: white;
+        }
+        .control-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        /* 响应式设计增强 */
+        @media (max-width: 768px) {
+            .sidebar-wrapper {
+                transform: translateX(-100%);
+                width: 80%;
+                max-width: 300px;
+            }
+            .sidebar-wrapper.active {
+                transform: translateX(0);
+                box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            }
+            .sidebar {
+                width: 100%;
+            }
+            .sidebar-toggle {
+                display: none; /* 在移动端隐藏侧边开关，改用菜单按钮 */
+            }
+            .main-content {
+                margin-left: 0 !important; /* 移动端不需要侧边栏边距 */
+                width: 100% !important;
+                padding: 15px;
+            }
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 95;
+            }
+            .sidebar-wrapper.active ~ .overlay {
+                display: block;
+            }
+            .mobile-menu-toggle {
+                display: block;
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                background: #0d6efd;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 1020;
+                cursor: pointer;
+            }
+        }
+        @media (min-width: 769px) {
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+        /* 图片加载指示器 */
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 1059;
+        }
+        /* 图片名称标题 */
+        .image-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            z-index: 1060;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 高亮样式 */
+        .highlighted-cell {
+            border: 2px solid "{{highlight_color|default('red')}}";
+            background-color: "{{highlight_bg_color|default('#fff0f0')}}";
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);
+        }
+        
+        .highlight-text {
+            color: "{{highlight_color|default('red')}}";
+            font-weight: bold;
+        }
+        
+        .toc-highlight {
+            color: "{{highlight_color|default('red')}}";
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- 侧边栏包装器 - 现在是固定位置 -->
+        <div class="sidebar-wrapper" id="sidebarWrapper">
+            <!-- 侧边栏内容 -->
+            <div class="sidebar">
+    <div class="toc">
+                    <h3 class="mb-3">Contents</h3>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#region-info" class="text-decoration-none">Region Information</a></li>
+                        <li class="mb-2">
+                            <div class="toc-group-header" onclick="toggleTocGroup(this)">
+                        <span>Visualizations</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                    <div class="toc-group-items">
+                                <ul class="list-unstyled ms-3 mt-2">
+                            {% for sample in samples %}
+                                    <li class="mb-1">
+                                        <a href="#cell-{{loop.index}}" class="text-decoration-none {% if sample.highlight %}toc-highlight{% endif %}">
+                                            {{sample.cell_barcode}}
+                                        </a>
+                                    </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+                </div>
+            </div>
+            <!-- 侧边栏切换按钮 - 位于包装器内，始终可见 -->
+            <div class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left"></i>
+        </div>
+    </div>
+    
+        <!-- 主内容区 -->
+    <div class="main-content">
+            <h1 class="mb-4">Insight Report: {{region_id}}</h1>
+            
+            <h2 id="region-info" class="mb-3">Region Information</h2>
+            <div class="region-info p-3 mb-4">
+                <div class="row">
+                    <div class="col-md-3 mb-2"><strong>Chromosome:</strong> {{chromosome}}</div>
+                    <div class="col-md-3 mb-2"><strong>Position:</strong> {{position}}</div>
+                    <div class="col-md-3 mb-2"><strong>Reference:</strong> {{reference}}</div>
+                    <div class="col-md-3 mb-2"><strong>Alternate:</strong> {{alternate}}</div>
+                </div>
+        </div>
+
+            <h2 id="visualizations" class="mb-4">Visualizations</h2>
+        <div class="cell-section">
+            {% for sample in samples %}
+                <div id="cell-{{loop.index}}" class="cell-title bg-light p-3 mb-3 rounded {% if sample.highlight %}highlighted-cell{% endif %}">
+                    <h3 class="mb-0 {% if sample.highlight %}highlight-text{% endif %}">{{sample.cell_barcode}}{% if sample.highlight %} <i class="fas fa-star"></i>{% endif %}</h3>
+            </div>
+            {% if not sample.is_empty %}
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <figure class="mb-2">
+                            <img src="data:image/png;base64,{{sample.image_base64}}" 
+                                 alt="Visualization for {{sample.cell_barcode}}"
+                                 class="img-fluid cell-image {% if sample.highlight %}highlighted-border{% endif %}"
+                                 data-title="{{sample.cell_barcode}}{% if sample.highlight %} (Highlighted){% endif %}"
+                                 data-image-id="{{loop.index}}"
+                                 onclick="openImageViewer(this)">
+                        </figure>
+                        <div class="sampling-info mt-2">
+                            <span class="text-primary">Total Reads: <strong>{{sample.sampler_info.total}}</strong></span>
+                            <span class="mx-3 text-success">Sampled Reads: <strong>{{sample.sampler_info.sampled}}</strong></span>
+                            {% if sample.sampler_info.total > 0 %}
+                            <span class="text-info">Sampling Rate: <strong>{{(sample.sampler_info.sampled / sample.sampler_info.total * 100)|round}}%</strong></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="error-message mb-4 {% if sample.highlight %}highlight-text{% endif %}">{{sample.note_message}}</p>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+        <!-- 移动端菜单遮罩 -->
+        <div class="overlay" onclick="toggleSidebar()"></div>
+    </div>
+    
+    <!-- 移动端菜单按钮 -->
+    <div class="mobile-menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <!-- 全屏图片查看器 -->
+    <div id="fullscreenViewer" class="fullscreen-viewer">
+        <div class="close-viewer" onclick="closeViewer()">
+            <i class="fas fa-times"></i>
+            </div>
+        <div id="imageTitle" class="image-title"></div>
+        <div id="loadingIndicator" class="loading-indicator">
+            <i class="fas fa-spinner fa-spin me-2"></i>Loading high-resolution image...
+            </div>
+        <div id="viewerContainer" class="viewer-container"></div>
+        <div class="viewer-controls">
+            <button class="control-btn" onclick="zoomIn()"><i class="fas fa-plus"></i></button>
+            <span id="zoomLevel">100%</span>
+            <button class="control-btn" onclick="zoomOut()"><i class="fas fa-minus"></i></button>
+            <button class="control-btn" onclick="resetView()"><i class="fas fa-expand"></i></button>
+            <button class="control-btn" onclick="toggleFullscreen()"><i class="fas fa-compress" id="fullscreenIcon"></i></button>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // 侧边栏功能
+        function toggleSidebar() {
+            const sidebarWrapper = document.getElementById('sidebarWrapper');
+            if (window.innerWidth <= 768) {
+                // 移动端逻辑
+                sidebarWrapper.classList.toggle('active');
+            } else {
+                // 桌面端逻辑
+                sidebarWrapper.classList.toggle('collapsed');
+            }
+        }
+        
+        // TOC分组展开/折叠
+        function toggleTocGroup(element) {
+            const items = element.nextElementSibling;
+            const icon = element.querySelector('i');
+            
+            items.classList.toggle('collapsed');
+            if (items.classList.contains('collapsed')) {
+                icon.className = 'fa-solid fa-chevron-right';
+            } else {
+                icon.className = 'fa-solid fa-chevron-down';
+            }
+        }
+        
+        // 记住侧边栏状态
+        function saveStateToLocalStorage() {
+            const sidebarWrapper = document.getElementById('sidebarWrapper');
+            if (window.innerWidth > 768) {
+                localStorage.setItem('sidebarCollapsed', sidebarWrapper.classList.contains('collapsed'));
+            }
+        }
+        
+        // 加载侧边栏状态
+        function loadStateFromLocalStorage() {
+            if (window.innerWidth > 768) {
+                const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                const sidebarWrapper = document.getElementById('sidebarWrapper');
+                if (isCollapsed) {
+                    sidebarWrapper.classList.add('collapsed');
+                }
+            }
+        }
+        
+        // 窗口大小变化处理
+        window.addEventListener('resize', function() {
+            const sidebarWrapper = document.getElementById('sidebarWrapper');
+            if (window.innerWidth > 768) {
+                sidebarWrapper.classList.remove('active');
+            } else {
+                sidebarWrapper.classList.remove('collapsed');
+            }
+        });
+        
+        // 点击内容区域时收起移动端侧边栏
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) {
+                const sidebarWrapper = document.getElementById('sidebarWrapper');
+                const mobileToggle = document.querySelector('.mobile-menu-toggle');
+                
+                if (sidebarWrapper.classList.contains('active') && 
+                    !sidebarWrapper.contains(e.target) && 
+                    e.target !== mobileToggle &&
+                    !mobileToggle.contains(e.target)) {
+                    sidebarWrapper.classList.remove('active');
+                }
+            }
+        });
+        
+        // 图片查看器相关功能
+        let viewer = null;
+        let isFullscreen = true;
+        
+        // 确保DOM完全加载后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载侧边栏状态
+            loadStateFromLocalStorage();
+            
+            // 侧边栏状态变更时保存
+            document.getElementById('sidebarWrapper').addEventListener('transitionend', saveStateToLocalStorage);
+            
+            // 给所有图片添加点击事件
+            document.querySelectorAll('.cell-image').forEach(img => {
+                img.addEventListener('click', function() {
+                    openImageViewer(this);
+                });
+            });
+            
+            // TOC内的链接点击在移动端自动关闭侧边栏
+            if (window.innerWidth <= 768) {
+                document.querySelectorAll('.toc a').forEach(link => {
+                    link.addEventListener('click', function() {
+                        document.getElementById('sidebarWrapper').classList.remove('active');
+                    });
+                });
+            }
+        });
+        
+        function openImageViewer(imgElement) {
+            const fullscreenViewer = document.getElementById('fullscreenViewer');
+            const imageTitle = document.getElementById('imageTitle');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            // 设置图片标题
+            imageTitle.textContent = imgElement.dataset.title || '';
+            
+            // 显示加载指示器和容器
+            loadingIndicator.style.display = 'block';
+            fullscreenViewer.style.display = 'block';
+            
+            // 阻止滚动
+            document.body.style.overflow = 'hidden';
+            
+            // 初始化 OpenSeadragon 查看器
+            initializeViewer(imgElement.src, imgElement.dataset.title);
+            
+            // 捕获ESC键关闭
+            document.addEventListener('keydown', handleKeyDown);
+        }
+        
+        function initializeViewer(imageSource, title) {
+            // 清除之前的查看器
+            if (viewer) {
+                viewer.destroy();
+                viewer = null;
+            }
+            
+            // 创建新查看器
+            viewer = OpenSeadragon({
+                id: "viewerContainer",
+                prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+                tileSources: {
+                    type: 'image',
+                    url: imageSource,
+                    buildPyramid: true,
+                    crossOriginPolicy: 'Anonymous'
+                },
+                showNavigationControl: false,  // 我们将使用自定义控件
+                showNavigator: true,           // 显示右下角导航小图
+                navigatorPosition: "BOTTOM_RIGHT",
+                navigatorSizeRatio: 0.15,      // 导航器大小比例
+                navigatorBorderColor: "#fff",
+                navigatorDisplayRegionColor: "#ff0000",
+                maxZoomPixelRatio: 5,
+                minZoomImageRatio: 0.8,
+                zoomPerClick: 1.5,
+                animationTime: 0.5,
+                blendTime: 0.1,
+                immediateRender: true,
+                wrapHorizontal: false,
+                showRotationControl: false,
+                gestureSettingsMouse: {
+                    scrollToZoom: true,
+                    clickToZoom: true,
+                    dblClickToZoom: false
+                }
+            });
+            
+            // 监听加载完成事件
+            viewer.addHandler('open', function() {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                updateZoomLevel();
+            });
+            
+            // 监听缩放事件
+            viewer.addHandler('zoom', function() {
+                updateZoomLevel();
+            });
+            
+            // 添加错误处理
+            viewer.addOnceHandler('open-failed', function(event) {
+                console.error('OpenSeadragon open failed:', event);
+                document.getElementById('loadingIndicator').innerHTML = 
+                    '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load image.';
+            });
+        }
+        
+        function closeViewer() {
+            const fullscreenViewer = document.getElementById('fullscreenViewer');
+            fullscreenViewer.style.display = 'none';
+            
+            // 恢复滚动
+            document.body.style.overflow = '';
+            
+            // 移除键盘监听
+            document.removeEventListener('keydown', handleKeyDown);
+            
+            // 销毁查看器以释放资源
+            if (viewer) {
+                viewer.destroy();
+                viewer = null;
+            }
+        }
+        
+        function handleKeyDown(e) {
+            if (e.key === 'Escape') {
+                closeViewer();
+            } else if (e.key === '+' || e.key === '=') {
+                zoomIn();
+            } else if (e.key === '-') {
+                zoomOut();
+            } else if (e.key === '0') {
+                resetView();
+            }
+        }
+        
+        function zoomIn() {
+            if (viewer) {
+                viewer.viewport.zoomBy(1.5);
+                updateZoomLevel();
+            }
+        }
+        
+        function zoomOut() {
+            if (viewer) {
+                viewer.viewport.zoomBy(0.667);
+                updateZoomLevel();
+            }
+        }
+        
+        function resetView() {
+            if (viewer) {
+                viewer.viewport.goHome();
+            updateZoomLevel();
+            }
+        }
+        
+        function toggleFullscreen() {
+            const viewerElement = document.getElementById('fullscreenViewer');
+            const icon = document.getElementById('fullscreenIcon');
+            
+            if (!isFullscreen) {
+                if (viewerElement.requestFullscreen) {
+                    viewerElement.requestFullscreen();
+                } else if (viewerElement.webkitRequestFullscreen) {
+                    viewerElement.webkitRequestFullscreen();
+                } else if (viewerElement.msRequestFullscreen) {
+                    viewerElement.msRequestFullscreen();
+                }
+                icon.className = 'fas fa-compress';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                icon.className = 'fas fa-expand';
+            }
+            
+            isFullscreen = !isFullscreen;
+        }
+        
+        function updateZoomLevel() {
+            if (viewer && viewer.viewport) {
+                const zoomFactor = Math.round(viewer.viewport.getZoom() * 100);
+                document.getElementById('zoomLevel').textContent = zoomFactor + '%';
+            }
+        }
+        
+        // 监听全屏变化
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+        
+        function handleFullscreenChange() {
+            const icon = document.getElementById('fullscreenIcon');
+            if (document.fullscreenElement) {
+                icon.className = 'fas fa-compress';
+                isFullscreen = true;
+            } else {
+                icon.className = 'fas fa-expand';
+                isFullscreen = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Input files
+mutation_file: df_bin_raw_mini.txt
+bam_path: IN.bam
+reference_fasta: genome.fa
+
+# Helper files
+r_script: /home/xiayh/miniconda3/envs/insight/lib/python3.11/site-packages/in_sight/r_script/plot_base.R
+template_file: template_simple.html
+
+# Output directory
+output_dir: ./output_cf_mini
+
+# Analysis parameters
+min_base_quality: 10
+target_count: 200
+max_workers: 10
+align_samples: True 
+mutation_parser: default
+# # 默认规则处理 chr1_39034563_T_A 格式
+# result = parse_mutation_file("mutations.tsv")
+
+# # suffix 模式处理前缀格式如 P4_cSCC_chr1_1234_A_G
+# result = parse_mutation_file("mutations.tsv", parse_rule="suffix")
+# 任意前缀，只考虑后面4个chr1_1234_A_G
+
+# # 使用自定义正则表达式处理复杂格式
+# mutation_parser = "regex:(?P<sample>\w+)_(?P<type>\w+)_(?P<chrom>chr\w+)_(?P<pos>\d+)_(?P<ref>[ACGTN])_(?P<alt>[ACGTN])"
+# result = parse_mutation_file("mutations.tsv", parse_rule=mutation_parser)
+
+# selected_mutations:
+#   - chr1_12345_A_G
+#   - chr2_67890_C_T
