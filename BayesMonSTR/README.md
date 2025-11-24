@@ -270,7 +270,7 @@ sudo docker run -it --rm \
 
 # run filtering
 sudo docker run -it --rm \
-    -v ../demo/:/demo \
+    -v ./demo/:/demo \
     -v ./results:/results \
     -w /demo \
     bayesmonstr \
