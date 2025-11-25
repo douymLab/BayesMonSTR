@@ -1,0 +1,2 @@
+Ind,Ind,Sex,Tissue,sequencing_type,bam_path,mosdepth_wgs_mean_depth,used_genotyping_str_mean_depth,seq_tech
+HG002_1,HG002,male,LCL,WGS,/BulkMonSTR/demo/mosaic_genotyping_test/bam/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.bam,300,300,illumina
