@@ -17,3 +17,7 @@ See [BayesMonSTR-Bulk](BayesMonSTR-Bulk/README.md) for details.
 ## BayesMonSTR-ATAC
 
 See [BayesMonSTR-ATAC](BayesMonSTR-ATAC/README.md) for details.
+
+## INSIGHT
+
+See [INSIGHT](INSIGHT/README.md) for details
