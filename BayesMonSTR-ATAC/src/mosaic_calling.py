@@ -134,26 +134,6 @@ def cmd_args(args=sys.argv[1:]):
         arguments as attributes.
     """
     parser = argparse.ArgumentParser(
-        description=(
-            textwrap.dedent(
-                """
-------------------------------------------------------------------------------
-MosaicSTR: Detecting mosaic STR mutations from bulk short-read sequencing data
-------------------------------------------------------------------------------
-"""
-            )
-        ),
-        epilog=(
-            textwrap.dedent(
-                """
-------------------------------------------------------------------------------
-Any bugs can be reported to
-Github:"https://github.com/Lidweixiang/MosaicSTR" or
-E-Mail: "18829352615@163.com"'
-------------------------------------------------------------------------------
-"""
-            )
-        ),
         prog="MosaicSTR",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         usage="%(prog)s [options] ",
@@ -204,32 +184,6 @@ E-Mail: "18829352615@163.com"'
         # help="STR mutation calling output(Bgzipped VCF file)",
         help="STR mutation calling output path",
     )
-    required_args.add_argument(
-        "-j",
-        "--config_json",
-        required=False,
-        default=os.path.join(
-            os.path.dirname(__file__), "configs", "config.json"
-        ),
-        help=(
-            "Configuration(JSON file) for more details parameters enactment"
-            " (A developer options)"
-        ),
-    )
-    required_args.add_argument(
-        "-m",
-        "--mode",
-        choices=["RNA-seq", "WGS", "WES"],
-        default="RNA-seq",
-        help="Sequencing type of analyzed data",
-    )
-    required_args.add_argument(
-        "-u",
-        "--stutter_model",
-        choices=["Common", "1KG", "GTEx", "EM"],
-        default="EM",
-        help="Stutter model for STR mutation calling",
-    )
     # Optional input arguments
     optional_input_args = parser.add_argument_group("Optional input arguments")
     optional_input_args.add_argument(
@@ -242,8 +196,8 @@ E-Mail: "18829352615@163.com"'
         ),
     )
     optional_input_args.add_argument(
-        "-si",
-        "--stutter_model_in",
+        "-s",
+        "--stutter_model",
         help=(
             "Use stutter models from big cohorts (Current available: 1KG"
             " HipSTR model and GTEx HipSTR model, Estimate via EM algorithm"
@@ -286,9 +240,6 @@ E-Mail: "18829352615@163.com"'
     #     "-l", "--log", action="extend", nargs="*", help="Log files"
     # )
     optional_output_args.add_argument(
-        "-l", "--log", default="mosaic_calling_log", help="Log files"
-    )
-    optional_output_args.add_argument(
         "-ll",
         "--loglevel",
         help="Sets the threshold for this logger to level.",
@@ -303,21 +254,9 @@ E-Mail: "18829352615@163.com"'
         help="Output log to file",
     )
     optional_output_args.add_argument(
-        "-q",
-        "--stutter_model_out",
-        help="Output stutter model from EM-algorithm",
-    )
-    optional_output_args.add_argument(
         "-f",
         "--vcf_out",
-        help="Output vcf files of mosaic calling",
-    )
-    optional_output_args.add_argument(
-        "-z",
-        "--viz_out",
-        help=(
-            "Output pileup-like visualization image of candidate STR mutations"
-        ),
+        help="Prefiex of output vcf files of mosaic calling",
     )
     # Other optional arguments
     other_optional_args = parser.add_argument_group("Other optional arguments")
@@ -334,8 +273,8 @@ E-Mail: "18829352615@163.com"'
         "-t",
         "--threads",
         type=int,
-        default=1,
-        help="Number of threads to use, set to -1 when using all threads)",
+        default=-1,
+        help="Number of threads to use (default: -1, use all available cores)",
     )
     other_optional_args.add_argument(
         "-v",
@@ -399,9 +338,9 @@ def mosaic_fraction_estimate_prepare(parsed_options):
     mosaic_fraction_all_params["bam_name"] = sample_name_list
     genome_wide_info_dict["sample_name_list"] = sample_name_list
 
-    log_dir = parsed_options.output_dir + "/mosaic_fraction_estimation_log"
+    log_dir = parsed_options.output_dir + "/log"
     result_dir = (
-        parsed_options.output_dir + "/mosaic_fraction_estimation_results"
+        parsed_options.output_dir + "/results"
     )
     os.system("mkdir -p " + parsed_options.output_dir)
     os.system("mkdir -p " + log_dir)
@@ -414,25 +353,21 @@ def mosaic_fraction_estimate_prepare(parsed_options):
     fail_file = (
         log_dir
         + "/"
-        + parsed_options.log
-        + "_"
         + uid
         + "_mosaic_calling_fail_loci.log"
     )
     mosaic_fraction_all_params["vcf_output"] = (
         result_dir
         + "/"
-        + parsed_options.vcf_out
-        + "_"
         + uid
         + "_mosaic_calling.vcf"
     )
     mosaic_fraction_all_params["fail_file"] = fail_file
-    logfile = log_dir + "/" + parsed_options.log + "_" + uid + ".log"
+    logfile = log_dir + "/" + uid + ".log"
     mosaic_fraction_all_params["log_file"] = logfile
     mosaic_fraction_all_params[
         "stutter_file"
-    ] = parsed_options.stutter_model_in
+    ] = parsed_options.stutter_model
     mosaic_fraction_all_params[
         "gnomad_freq_in"
     ] = parsed_options.gnomad_freq_in
@@ -599,60 +534,6 @@ def nearby_SNP_spanning_reads_quality_control():
 def keey_nearby_snp_with_all_str_allele():
     # Done in code
     pass
-
-
-# def get_freq_for_mutation_complete_from_annovar(chr_gnomAD, chr, pos, ref, alt):
-# From Spatial Transcriptom
-#     '''
-#     # Example lines:
-#     10140-10150(!10145!): ACCCT!A!ACCCC
-#     1   chr1	10144	10145	CCCTAA	C
-#     2   chr1	10145	10145	A	AC	0
-#     3   chr1	10145	10145	A	C	5.898e-05
-#     ## There are several conditions
-#     1   deltion of A, influence freqA
-#     2   A to AC, an insertion of C, didn't influent freqA
-#     3   substitutaion of A, influence freqA
-#     ### if input is ref=A, alt=C (substitution):
-#         p_ref = 1 - p_alt - p_deletion -p_other_substitution
-#     ### if input is ef=A, alt=AC (insertion):
-#         p_ref = 1 - p_alt
-#     ### if input is ref=TAACCCC, alt= T (deletion):
-#         p_ref = 1- p_alt
-#     '''
-#     pos_bed = "\t".join([chr,pos,ref,alt])
-#     pos_bed_obj = BedTool(pos_bed, from_string=True)
-#     pos_intersect = chr_gnomAD.intersect(pos_bed_obj, u=True)
-#     p_other_deletion=0.0
-#     p_other_sub=0.0
-#     p_alt=0.0
-#     for line in pos_intersect:
-#         sline=line.strip().split()
-#         if "-" not in [sline[3],sline[4]] and int(pos) in range(int(sline[1],int(sline[2]+1))):
-#             # in annovar file, the pos is recorded by "chr true_pos true_pos",
-#             # while in our input file, the pos is recorded by "chr true_pos",
-#             # so the range should be "chr true_pos true_pos+1"
-#             if sline[0]==chr and int(sline[1])==pos and sline[2]==ref and sline[3]==alt:
-#                 p_alt=float(sline[5])
-#             elif int(sline[1])==pos-1 and len(sline[3])<len(sline[4]):
-#                 # this may be a deletion (-alt)
-#                 p_other_deletion += float(sline[5])
-#             elif int(sline[1])==pos and int(sline[2])==pos and len(sline[3])>len(sline[4]):
-#                 # this may be an insertion (-alt)
-#                 pass
-#             elif int(sline[1])==pos and int(sline[2])==pos and len(sline[3])==len(sline[4]):
-#                 # this may be a subsitution
-#                 p_other_sub+=float(sline[5])
-#             else:
-#                 pass
-
-#     if len(ref)<len(alt):
-#        # insertion
-#         p_ref=1-p_alt
-#     else:
-#         p_ref = 1- p_other_deletion - p_other_sub
-
-#     return p_ref, p_alt
 
 
 def judge_nearbysnp_popAF(
@@ -956,23 +837,6 @@ def select_high_confidence_nearby_snp(
                 if pileupcolumn.reference_pos == pos:
                     # the position in the reference sequence (0-based).
                     for pileupread in pileupcolumn.pileups:
-                        # truncate (bool) – By default, the samtools pileup engine outputs all reads overlapping a region. If truncate is True and a region is given, only columns in the exact region specified are returned.
-                        # max_depth (int) – Maximum read depth permitted. The default limit is '8000'.
-                        # stepper (string) –
-                        # The stepper controls how the iterator advances. Possible options for the stepper are
-                        # pileup(self, contig=None, start=None, stop=None, region=None, reference=None, end=None, **kwargs)
-                        # stepper (string) – The stepper controls how the iterator advances. Possible options for the stepper are
-                        # all skip reads in which any of the following flags are set: BAM_FUNMAP, BAM_FSECONDARY, BAM_FQCFAIL, BAM_FDUP
-                        # nofilter uses every single read turning off any filtering.
-                        # samtools same filter and read processing as in samtools pileup.
-                        # flag_filter (int) – ignore reads where any of the bits in the flag are set.
-                        # ignore_orphans
-                        # ignore_overlaps
-                        # min_base_quality
-                        # min_mapping_quality
-                        # flag_require
-                        # adjust_capq_threshold
-                        # compute_baq
                         if (
                             (not pileupread.is_del)
                             and (not pileupread.is_refskip)
@@ -988,20 +852,6 @@ def select_high_confidence_nearby_snp(
                                 < pileupread.alignment.reference_end
                                 - AVOID_TERMINAL_SNPs_FOR_PADDING_LENGTH
                             ):
-                                # if NEARBY_SNP_READ_FILTER:
-                                #     # according to mosaicfocast mapQ<20,baseQ<20,depth<20,binominal test
-                                #     mapQ = pileupread.alignment.mapping_quality
-                                #     baseQ = np.mean(pileupread.alignment.query_qualities)
-                                #     filtered_out = (mapQ < NEARBYSNP_MAPQ_BASEQ_CUTOFF or mapQ < NEARBYSNP_MAPQ_BASEQ_CUTOFF)
-                                #     if filtered_out:
-                                #         continue
-                                # if (
-                                #     reads_snp_seq[var_loci_name].get(
-                                #         pileupread.alignment.query_name, None
-                                #     )
-                                #     == None
-                                # ):
-                                # TODO: process nearby SNP located in overlap regions of PE reads
                                 snp_seq = pileupread.alignment.query_sequence.upper()[
                                     pileupread.query_position
                                 ]
@@ -1140,79 +990,6 @@ def pacbio_phasing(
             "NA",
             "NA",
         )
-
-
-# def refine_hap_counts_stratedy(PEAD,
-#                                PMLEEAD,
-#                                phase_read_num,
-#                                read_hap_list,
-#                                read_feature_list,
-#                                all_hap_seq,
-#                                mle_based_hap_num,
-#                                mut_trans_type,
-#                                invert_phase,
-#                                mle_hap_depth,
-#                                observed_hap_depth):
-# Below is the strategy from MosaicFocast
-# if C1+C2+C3+C4>=10:
-#     if variant_type=="SNP" or variant_type=="MNP":
-#     #UMB1349 18 30348609 C T 30348301 G A 0 34 29 0 2
-#         #if not ( ((C1>C2*10) and (C4>C3*10)) or ((C1<C2/10) and (C4<C3/10)) or (((C1>C2/10) and (C1<C2*10)) and (C3<=C4/10 or C4<=C3/10))  ):
-#         if not ( ( (C1>C2*10) and (C4>C3*10) and (C1<C4*5 and C1>C4/5) ) or ((C1<C2/10) and (C4<C3/10) and (C2<C3*5 and C2>C3/5)) or (((C1>C2/10) and (C1<C2*10)) and (C3<=C4/10 or C4<=C3/10))  ):
-#             phase[name]['hap>3']=phase[name].get("hap>3",0)+1
-#         elif (((C1>C2/10) and (C1<C2*10)) and (C3<C4/10 or C4<C3/10) and (C3+C4>1)):
-#             phase[name]['hap=3']=phase[name].get("hap=3",0)+1
-#         #elif ((C1>C2*10) and (C4>C3*10)) or ((C1<C2/10) and (C4<C3/10)):
-#         #	phase[name]['hap=2']=phase[name].get("hap=2",0)+1
-#         elif ( (C1>C2*10) and (C4>C3*10) and (C1<C4*5 and C1>C4/5) ) or ((C1<C2/10) and (C4<C3/10) and (C2<C3*5 and C2>C3/5)):
-#             phase[name]['hap=2']=phase[name].get("hap=2",0)+1
-# #	elif C3+C4==0:
-# #		phase[name]['NA']=phase[name].get("NA",0)+1
-#     elif variant_type!="SNP":
-#         if not ( ((C1>C2*5) and (C4>C3*5) and (C1<C4*5 and C1>C4/5)) or ((C1<C2/5) and (C4<C3/5) and (C2<C3*5 and C2>C3/5)) or (((C1>C2/5) and (C1<C2*5)) and (C3<=C4/5 or C4<=C3/5))  ):
-#             phase[name]['hap>3']=phase[name].get("hap>3",0)+1
-#         elif (((C1>C2/5) and (C1<C2*5)) and (C3<C4/5 or C4<C3/5) and (C3+C4>1)):
-#             phase[name]['hap=3']=phase[name].get("hap=3",0)+1
-#         elif ((C1>C2*5) and (C4>C3*5) and (C1<C4*5 and C1>C4/5)) or ((C1<C2/5) and (C4<C3/5) and (C2<C3*5 and C2>C3/5)):
-#             phase[name]['hap=2']=phase[name].get("hap=2",0)+1
-# #one additional step: using multiple germline het sites to do further phasing
-# MT2_inforSNPs_phasing=defaultdict(list)
-# MT2_phasing_num=defaultdict(dict)
-# for k,v in sorted(inforSNPs.items()):
-#     reads_type1=list()
-#     reads_type2=list()
-#     reads_type3=list()
-#     reads_type4=list()
-#     if len(v)>1:
-# 我的策略：Do hap count and phasing refine stratedy
-# （1）丢弃等概率 reads （2）怀疑不存在观测的hap reads 以排除不符合 mosaicGT 和 assign 错误的 hap = 3
-# (3)
-# stuttet fraction > 0.9 strand fraction > 0.9 mosaic fraction < stutter errors low germ or mosaic hap depth
-# h3 fraction and unkown assign fraction
-# Pre-refine of hap number counting: Do or Not, Multinominal Regression, Hard Cut-off to get hap num label and new labels (mosaic artifacts repeat germline)
-# 逻辑：先看每条 read 属于哪个 hap, 存下 read 的特征包括 mapQ，strand bias
-# homhet and hethet
-# germhom, germhet, artifacts, repeat, mosaic
-# artifacts/germ/mosaic, reason, mle_hap_num, refine_hap_num
-# hom2het，het2het，het2hom
-# if mle_based_hap_num == 3:
-#     # MosaicFocast hap = 3 的卡法: （1）germ 两个 hSNP 不差太多，vaf 在 0.2以上 对于 germ hsnp，存在 mutant allele 至少两条，且 cordant 比 discordant 大5倍以上
-#     # 目前我都用 mle 分好 mle hap 了，当 mle 的 hap = 3时，代表最可能 hap 数量为三，但是是不是符合 mosaicGT 呢？需要进行判断
-#     if (np.sum(np.array(PEAD)>0) == 4) and (np.sum(np.array(PMLEEAD)>0) == 4):
-#         # 排除非 mosaicGT 和 assign 错误的 hap = 3
-#         if
-#         if 0.2-0.8 + binominal test + 小于两条或者比例小于对于 h2 het2hom（germ het），mosaic 小于两条对于 hom2het（germ hom）
-#             # low mosaic fraction and imbalance h2 fraction
-#         if
-#             # strand bias
-#         if
-#             # mapQ
-# if mle_based_hap_num == 4: # 先
-#     # 过滤 low depth hap 后如果为 3 进入 # 后
-#     if (np.sum(np.array(PEAD)>0) == 4) and (np.sum(np.array(PMLEEAD)>0) == 4):
-## 过滤 germline 和 artifacts 和 repeats，再加 read-level features 构建 RF Model 使用 popAF 和 germline pop infors and popAF filter germline variants 哈
-## strand bias filtering
-## 最后使用大的过滤如 mosaic fraction 或者 VAF 进行过滤哈哈哈
 
 
 def main_per_locus_estimation(parse_params, pysam_bed_row):
@@ -4592,157 +4369,8 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                         samples_dict[bamname][
                             "PGOMDR"
                         ] = observed_germ_discordant_rate
-                        # phasable_reads_number =
-                        # phasable_reads_proportion =
-                        # Phase2_GT1 = phase_calling.genotypes.index(tuple([allele2_index,allele1_index]))
-                        # Phase2_GT2 = phase_calling.genotypes.index(tuple([allele4_index,allele3_index]))
-                        # phase_calling.mosaic_fraction_estimation()
-                        # (phase_MaxMosaicGT_for_output,
-                        #  phase_MaxMosaicLogPosterior,
-                        #  phase_MaxMosaicLogLik,
-                        #  phase_MaxMosaicLogPosterior_unphase,
-                        #  phase_MaxMosaicLogLik_unphase,
-                        #  phase_MaxMosaicPhaseLogPostPosterior,
-                        #  phase_MaxMosaicPhaseLogLikPosterior,
-                        #  phase_SecondMosaicGT_for_output,
-                        #  phase_SecondMosaicLogPosterior,
-                        #  phase_SecondMosaicLogLik,
-                        #  phase_GermlineGT_for_output,
-                        #  phase_GermlineLogPosterior,
-                        #  phase_GermlineLogLik,
-                        #  phase_Non_Germ2germLogPosterior,
-                        #  phase_Non_Germ2germLogLikFraction,) = phase_calling.cal_somatic_log_posterior()
-                        # phase_MaxMosaicGT_for_pop_output = phase_calling.get_final_mosaic_index(
-                        #     phase_MaxMosaicGT_for_output)
-                        # max_germ_gt = MaxMosaicGT_for_output[0]
-                        # max_mosaic_gt = MaxMosaicGT_for_output[1]
-                        # if DEBUG:
-                        #     print(phase_calling.genotypes)
-                        #     print(tuple(max_germ_gt))
-                        # max_germ_gt_index = phase_calling.genotypes.index(
-                        #     tuple(max_germ_gt))
-                        # max_mosaic_gt_index = phase_calling.genotypes.index(
-                        #     tuple(max_mosaic_gt))
-                        # max_germ_mosaic_gt_index = phase_calling.mosaic_genotypes.index(
-                        #     tuple([max_germ_gt_index, max_mosaic_gt_index]))
-                        # max_mosaic_mosaic_fraction = phase_calling.estimated_mosaic_fraction[
-                        #     max_germ_mosaic_gt_index]
-                        # mosaic_gt_linking_alleles_index = [
-                        #     MaxMosaicGT_for_output[0][0],
-                        #     MaxMosaicGT_for_output[0][1] +
-                        #     phase_calling.alleles_number_used_for_gt,
-                        #     MaxMosaicGT_for_output[1][0],
-                        #     MaxMosaicGT_for_output[1][1] +
-                        #     phase_calling.alleles_number_used_for_gt
-                        # ]
-                        # hap_depth_list = myutils.cal_mle_haplotype_depth_dict_phase(
-                        #     phase_calling.all_reads_all_alleles_linking_log_lik_array)
-                        # samples_dict[bamname]["PDSTUTTER"] = sum(
-                        #     hap_depth_list)-sum(hap_depth_list[mosaic_gt_linking_alleles_index])
-                        # mask = np.ones_like(hap_depth_list, dtype=bool)
-                        # mask[mosaic_gt_linking_alleles_index] = False
-                        # count_nonzero = np.count_nonzero(hap_depth_list[mask])
-                        # samples_dict[bamname]["PNSTUTTER"] = count_nonzero
-                        # # XXX: Here is observed GT depth and not expected depth (considering stutter error reads depth when use expected)
-                        # EAD = ""
-                        # EAF = ""
-                        # for adp in hap_depth_list[mosaic_gt_linking_alleles_index]:
-                        #     EAD = str(adp)+","
-                        #     EAF = str(adp/phase_calling.reads_number)+","
-                        # EAD = EAD[:-1]
-                        # EAF = EAF[:-1]
-                        # samples_dict[bamname]["PEAD"] = EAD
-                        # samples_dict[bamname]["PEAF"] = EAF
-                        # if phase_MaxMosaicGT_for_pop_output[0] == phase_MaxMosaicGT_for_pop_output[1]:
-                        #     phase_mosaic_type = "Germline"
-                        #     samples_dict[bamname]["PMUTP"] = "."
-                        #     samples_dict[bamname]["PFRAME"] = "."
-                        #     samples_dict[bamname]["PMN"] = 0
-                        # elif (phase_MaxMosaicGT_for_pop_output[0][0] != phase_MaxMosaicGT_for_pop_output[1][0] and
-                        #       phase_MaxMosaicGT_for_pop_output[0][1] != phase_MaxMosaicGT_for_pop_output[1][1]):
-                        #     phase_mosaic_type = "TwoAlleleMosaic"
-                        #     samples_dict[bamname]["PMUTP"] = "."
-                        #     samples_dict[bamname]["PFRAME"] = "."
-                        #     samples_dict[bamname]["PMN"] = 2
-                        # else:
-                        #     samples_dict[bamname]["PMN"] = 1
-                        #     phase_mosaic_type = "OneAlleleMosaic"
-                        #     # XXX: Here assumption that mosaic cells is the second GT
-                        #     if phase_MaxMosaicGT_for_pop_output[0][0] != phase_MaxMosaicGT_for_pop_output[1][0]:
-                        #         mosaic_allele = phase_MaxMosaicGT_for_pop_output[1][0]
-                        #     else:
-                        #         mosaic_allele = phase_MaxMosaicGT_for_pop_output[1][1]
-                        #     if LIKELIHOOD_MODE == "length-based":
-                        #         if all_alleles_list_for_gt_output[mosaic_allele] == seg_locus.ref_allele_length:
-                        #             samples_dict[bamname]["MUTP"] = "mismatch"
-                        #         elif all_alleles_list_for_gt_output[mosaic_allele] > seg_locus.ref_allele_length:
-                        #             samples_dict[bamname]["MUTP"] = "ins"
-                        #         else:
-                        #             samples_dict[bamname]["MUTP"] = "del"
-                        #         samples_dict[bamname]["PFRAME"] = "."
-                        #     else:
-                        #         if len(all_alleles_list_for_gt_output[mosaic_allele][1]) == seg_locus.ref_allele_length:
-                        #             samples_dict[bamname]["MUTP"] = "mismatch"
-                        #             samples_dict[bamname]["PFRAME"] = "."
-                        #         elif len(all_alleles_list_for_gt_output[mosaic_allele][1]) > seg_locus.ref_allele_length:
-                        #             samples_dict[bamname]["MUTP"] = "ins"
-                        #             if abs(len(all_alleles_list_for_gt_output[mosaic_allele][1]) - seg_locus.ref_allele_length) % seg_locus.motif_length == 0:
-                        #                 samples_dict[bamname]["PFRAME"] = "inframe"
-                        #             else:
-                        #                 samples_dict[bamname]["PFRAME"] = "outframe"
-                        #         else:
-                        #             samples_dict[bamname]["MUTP"] = "del"
-                        #             if abs(len(all_alleles_list_for_gt_output[mosaic_allele][1]) - seg_locus.ref_allele_length) % seg_locus.motif_length == 0:
-                        #                 samples_dict[bamname]["PFRAME"] = "inframe"
-                        #             else:
-                        #                 samples_dict[bamname]["PFRAME"] = "outframe"
-                        # phase_mosaic_vs_germline_or, phase_mosaic_vs_germline_p = mutation_filtering.ht_log_likelihood_ratio_test(
-                        #     np.log(phase_MaxMosaicLogLik), np.log(phase_GermlineLogLik), 2)
-                        # phase_mosaic_vs_second_or, phase_mosaic_vs_second_p = mutation_filtering.ht_log_likelihood_ratio_test(
-                        #     np.log(phase_MaxMosaicLogLik), np.log(phase_SecondMosaicLogLik), 3)
-                        # mosaic_gts_alleles = [tuple([phase_calling.alleles_used_for_gt[MaxMosaicGT_for_output[0][0]],
-                        #                              phase_calling.alleles_used_for_gt[MaxMosaicGT_for_output[0][1]]]),
-                        #                       tuple([phase_calling.alleles_used_for_gt[MaxMosaicGT_for_output[1][0]],
-                        #                              phase_calling.alleles_used_for_gt[MaxMosaicGT_for_output[1][1]]])]
-                        # coverage = phase_calling.reads_number
-                        # max_germ_gt = MaxMosaicGT_for_output[0]
-                        # max_mosaic_gt = MaxMosaicGT_for_output[1]
-                        # max_germ_gt_index = phase_calling.genotypes.index(
-                        #     tuple(max_germ_gt))
-                        # max_mosaic_gt_index = phase_calling.genotypes.index(
-                        #     tuple(max_mosaic_gt))
-                        # max_germ_mosaic_gt_index = phase_calling.mosaic_genotypes.index(
-                        #     tuple([max_germ_gt_index, max_mosaic_gt_index]))
-                        # max_mosaic_mosaic_fraction = phase_calling.estimated_mosaic_fraction[
-                        #     max_germ_mosaic_gt_index]
-                        # observed_hap_depth_list = myutils.cal_observed_haplotype_depth_dict_phase(
-                        #     phase_calling.reads_alleles_list,
-                        #     phase_calling.alleles_used_for_gt,
-                        #     phase_calling.nearby_snp)
-                        # concordant_rate = myutils.cal_concordant_rate(
-                        #     inframe_stutter_model,
-                        #     outframe_stutter_model,
-                        #     mosaic_gts_alleles,
-                        #     ALLELE_BALANCE,
-                        #     phase_calling.nearby_snp,
-                        #     SNP_SEQUENCING_ERROR_RATE_PRIOR,
-                        #     max_mosaic_mosaic_fraction,
-                        #     locus_infos["motif_length"],
-                        # )
-                        # observed_concordant_reads = np.sum(np.array(observed_hap_depth_list)[
-                        #                                    mosaic_gt_linking_alleles_index])
-                        # if DEBUG:
-                        #     print(concordant_rate)
-                        # XXX binominal 不好用是因为没办法算 seq-based error rate，所以不用
-                        # bino_observed_concordant_pvalue = mutation_filtering.binominal_test_less_observed_concordant_reads_for_phasing_confidence(concordant_rate,
-                        #                                                                                                                           coverage,
-                        #                                                                                                                           observed_concordant_reads)
+
                         samples_dict[bamname]["PP"] = phase_posterior
-                        # samples_dict[bamname]["PQ"] = bino_observed_concordant_pvalue
-                        # phase gt 的顺序只代表和哪一个 hSNP 进行 link
-                        # 而 unphase gt 的顺序则代表了是哪一个 allele 发生了 mosaic mutations
-                        # GT MGT 和 PGT 和 PMGT 可能相反
-                        # 一般的 GT[1] 为 source MGT[1] 为 mut，而 PGT 和 PMGT allele 的顺序与突变与否无关，只与 hSNP 的类型顺序有关
                         samples_dict[bamname]["PGT"] = (
                             str(best_phasing_mosaic_gts_alleles[0][0])
                             + "|"
@@ -4764,22 +4392,10 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                         samples_dict[bamname][
                             "PVARIANTTYPE"
                         ] = phase_mosaic_type
-                        # samples_dict[bamname]["PREGION"] = "."  # TODO
-                        # samples_dict[bamname]["PMP"] = phase_MaxMosaicLogPosterior
-                        # samples_dict[bamname]["PAMP"] = phase_Non_Germ2germLogPosterior
-                        # samples_dict[bamname]["PGQ"] = phase_SecondMosaicLogPosterior
-                        # samples_dict[bamname]["PGG"] = phase_GermlineLogPosterior
-                        # samples_dict[bamname]["PMF"] = max_mosaic_mosaic_fraction
-                        # samples_dict[bamname]["PPSTR"] = myutils.is_tandem_repeated_sequence(
-                        #     seg_locus.ref_STR_sequence, seg_locus.motif_length)
                         samples_dict[bamname][
                             "PDP"
                         ] = phase_calling.reads_number
-                        # samples_dict[bamname]["PFDP"] = "."
-                        # samples_dict[bamname]["PAAD"] = "."
                         PAAD = ""
-                        # observed_raw_hap_number = 0
-                        # observed_filtered_hap_number = 0
                         for allele in all_alleles_list_for_gt_output:
                             for snp_seq in nearby_snp:
                                 allele_depth = phasing_alleles_depth_dict.get(
@@ -4804,54 +4420,7 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                         samples_dict[bamname][
                             "PFILTER"
                         ] = f"{confidence},{filter1},{filter2},{filter3},{filter4}"
-                        # filter1 = int(
-                        #     samples_dict[bamname]["PMP"] > MAX_MOSAIC_POSTERIOR_CUTOFF)
-                        # filter2 = int(
-                        #     samples_dict[bamname]["PAMP"] > ALL_MOSAIC_POSTERIOR_CUTOFF)
-                        # filter3 = int(phase_mosaic_vs_second_p < LRT_PVALUE_CUTOFF)
-                        # filter4 = int(phase_mosaic_vs_germline_p <
-                        #               LRT_PVALUE_CUTOFF)
-                        # filter5 = int(bino_observed_concordant_pvalue <
-                        #               BINOMIAL_TEST_PVALUE_CUTOFF)
-                        # filter6 = int(
-                        #     abs(phase_MaxMosaicPhaseLogPostPosterior-0.5) >= PHASE_POSTERIOR_CUTOFF)
-                        # confidence = filter1 + filter2 + filter3 + filter4 + filter5 + filter6
-                        # samples_dict[bamname]["PFILTER"] = f"{confidence,filter1,filter2,filter3,filter4,filter5,filter6}"
 
-                        # # (12) mut bp and mut motif
-                        # mut_bp = mosaic_allele_str - mutated_allele_str
-                        # mut_motif_steps = (mut_bp)/motif_length
-                        # # 求余数
-                        # remainder = (mut_bp)%motif_length
-                        # # 求整数商
-                        # integer_quotient = (mut_bp)//motif_length
-                        # mutated_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mutated_allele_str_index],motif_length)
-                        # mosaic_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mosaic_allele_str_index],motif_length)
-                        # hap count simple refine OPALLAD (1) 移除等概率 assign reads hap count（2）hap count refine simple according to mle and observed hap depth
-                        # strand bias 宽松的条件大于 5 条且 fraction 为 1, 在 features 的时候计算
-                        # strand bias means mutant allele strand fraction > 0.9
-                        # 想设定的规则：小于 5 条不管，大于 5 条 strand fraction = 1 或者 fisher p-value < 0.05, 在 features 的时候计算
-                        # baseq p-value mean wilxcon ranksum test p-value < 0.05
-                        # 一开始一定要保证灵敏度，用最宽松的条件和最优效果的指标来富集真位点
-                        # samples_dict[bamname]["OPALLAD"] = all_observed_allele_depth_str
-                        # balance （0.5），h1，h2，h3 af PEAF mle and observed, phase mis and stutter fraction per allele
-                        # hom2het and het2het and het2hom and mutation rate prior
-                        # PRHN OPALLAD MLEPEAF PMB POB PGHAF PMHAF PH3AF PGD PSD PMD
-                        # 不卡指标但可设 features
-                        # PEAD and PEAF
-                        # mis and stutter fraction per allele
-                        # strand/mapQ/sbs num e.tal. bias and hom2het and het2het and het2hom and mutation rate prior
-                        # other issues also need to revise
-                        # mle_all_hap_number = np.sum(
-                        #     np.array(mle_hap_depth_list) > 0
-                        # )
-                        # mle_hap_number = np.sum(
-                        #     np.array(mle_hap_depth_list)
-                        #     > COUNT_MLE_HAP_NUM_DEPTH_CUTOFF  # 1
-                        # )
-                        # PRHN OPALLAD MLEPEAF
-                        # TODO: Debug for hap count refine because het2het may unphase germ and source 颠倒, 导致 phase 时 P1 和 P2 phase 反了
-                        # HACK: Temp debug done!
                         observed_mosaic_gt_allele_depth_list = [
                             int(i) for i in EAD.split(",")
                         ]
@@ -4960,56 +4529,6 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                     else:
                                         refine_hap_num = 2
                                         high_quality_hap_num = 2
-                        # observed_mosaic_gt_allele_depth_list = [
-                        #     int(i) for i in EAD.split(",")
-                        # ]
-                        # if (
-                        #     mle_all_hap_number == 3
-                        # ):  # assign errors noise and other discordant hap noise
-                        #     if (
-                        #         np.sum(
-                        #             np.array(mle_mosaic_gt_allele_depth_list)
-                        #             > 0
-                        #         )
-                        #         == 4
-                        #     ) and (
-                        #         np.sum(
-                        #             np.array(
-                        #                 observed_mosaic_gt_allele_depth_list
-                        #             )
-                        #             > 0
-                        #         )
-                        #         == 4
-                        #     ):
-                        #         refine_hap_num = 3
-                        #     else:
-                        #         refine_hap_num = 2
-                        # 目前数 hap 还是采取两个位点的 mle 计算哈
-                        # 为了保留最原始的 hap num，这边 hap > 3 的不优化，可以在后面进行 phase refine 的时候再优化
-                        # elif mle_all_hap_number > 3:
-                        #     if mle_hap_number == 3:
-                        #         if (
-                        #             np.sum(
-                        #                 np.array(
-                        #                     mle_mosaic_gt_allele_depth_list
-                        #                 )
-                        #                 > 0
-                        #             )
-                        #             == 4
-                        #         ) and (
-                        #             np.sum(
-                        #                 np.array(
-                        #                     observed_mosaic_gt_allele_depth_list
-                        #                 )
-                        #                 > 0
-                        #             )
-                        #             == 4
-                        #         ):
-                        #             refine_hap_num = 3
-                        #         else:
-                        #             refine_hap_num = mle_all_hap_number
-                        #     else:
-                        #         refine_hap_num = mle_all_hap_number
                         else:
                             refine_hap_num = mle_all_hap_number
                             high_quality_hap_num = mle_all_hap_number
@@ -5667,257 +5186,204 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                     )
                 )
                 myutils.release_lock(f)
-    # XXX except:
-    #     logger_stutter.info(
-    #         "Locus %s %s:%d-%d failed because error is raised"
-    #         % (
-    #             seg_locus.STR_id,
-    #             seg_locus.chrom,
-    #             seg_locus.start,
-    #             seg_locus.end,
-    #         )
-    #     )
-    #     with open(fail_file, "a") as f:
-    #         if myutils.acquire_lock(f):
-    #             f.write(
-    #                 "%s\t%d\t%d\t%s\n"
-    #                 % (
-    #                     seg_locus.chrom,
-    #                     seg_locus.start,
-    #                     seg_locus.end,
-    #                     seg_locus.STR_id,
-    #                 )
-    #             )
-    #             myutils.release_lock(f)
+
+def run(
+    # Required arguments
+    metadata,
+    reference_genome,
+    bed_panel,
+    output_dir,
+    # Optional input arguments
+    gene_model=None,
+    stutter_model="",
+    gnomad_freq_in="",
+    phasing="",
+    allele_imbalance=None,
+    # Optional output arguments
+    loglevel="INFO",
+    log_to_file=False,
+    vcf_out=None,
+    # Other optional arguments
+    chrom="",
+    start=0,
+    end=1_000_000_000,
+    threads=-1,
+    verbose=0,
+    debug=False,
+    versions=False,
+    # 控制执行模式
+    single_thread=False,
+):
+    # 动态获取 CPU 核心数
+    max_cores = os.cpu_count()
+    effective_threads = threads if threads > 0 else max_cores
+    if threads == -1:
+        effective_threads = max_cores
 
 
-if SINGLETHREAD:
-    # single process for debug
-    def main():
-        python_command = " ".join([sys.executable] + sys.argv)
-        parse_params = cmd_args(args=sys.argv[1:])
-        (
-            genome_wide_info_dict,
-            mosaic_fraction_all_params,
-        ) = mosaic_fraction_estimate_prepare(parse_params)
-        genome_wide_info_dict["commands"] = python_command
-        output_vcf.create_vcf_header(
-            genome_wide_info_dict, mosaic_fraction_all_params["vcf_output"]
-        )
-        STR_refpanel_bed = pysam.TabixFile(parse_params.bed_panel)
-        start_time = time.time()
-        logger_mosaic_fraction = logger_config.mosaic_fraction_logger(
-            mosaic_fraction_all_params["loglevel"],
-            mosaic_fraction_all_params["log_to_file"],
-            mosaic_fraction_all_params["log_file"],
-        )
-        logger_mosaic_fraction.info(
-            "Start time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-        )
-        logger_mosaic_fraction.info("Parameters: %s", parse_params)
-        logger_mosaic_fraction.info("Command: %s", python_command)
-        MAX_THREADS = (
-            # Adjust this value based on your system's capabilities
-            parse_params.threads
-        )
+    # 构造 argparse.Namespace 对象，模拟命令行解析结果
+    args = argparse.Namespace(
+        metadata=metadata,
+        reference_genome=reference_genome,
+        bed_panel=bed_panel,
+        output_dir=output_dir,
+        gene_model=gene_model,
+        stutter_model=stutter_model,
+        gnomad_freq_in=gnomad_freq_in,
+        phasing=phasing,
+        allele_imbalance=allele_imbalance,
+        loglevel=loglevel,
+        log_to_file=log_to_file,
+        vcf_out=vcf_out,
+        chrom=chrom,
+        start=start,
+        end=end,
+        threads=effective_threads,
+        verbose=verbose,
+        debug=debug,
+        versions=versions,
+    )
 
-        if parse_params.chrom == "":
-            for task in task_generator(
-                STR_refpanel_bed,
-                mosaic_fraction_all_params,
-            ):
-                main_per_locus_estimation(task[0], task[1])
+
+    # 版本信息
+    if versions:
+        print(f"MosaicSTR version '{__VERSION__}'")
+        return
+
+
+    # 构建 Python 命令（用于日志记录）
+    python_command = " ".join([sys.executable, __file__] + sys.argv[1:]) if hasattr(sys, "_getframe") else "unknown"
+
+
+    # 准备全局参数
+    try:
+        genome_wide_info_dict, mosaic_fraction_all_params = mosaic_fraction_estimate_prepare(args)
+    except Exception as e:
+        raise RuntimeError(f"Failed to prepare parameters: {e}")
+
+
+    genome_wide_info_dict["commands"] = python_command
+
+
+    # 创建输出 VCF 头文件
+    try:
+        output_vcf.create_vcf_header(genome_wide_info_dict, mosaic_fraction_all_params["vcf_output"])
+    except Exception as e:
+        raise RuntimeError(f"Failed to create VCF header: {e}")
+
+    # 初始化日志
+    logger_mosaic_fraction = logger_config.mosaic_fraction_logger(
+        mosaic_fraction_all_params["loglevel"],
+        mosaic_fraction_all_params["log_to_file"],
+        mosaic_fraction_all_params["log_file"],
+    )
+
+
+    start_time = time.time()
+    logger_mosaic_fraction.info("Start time: %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)))
+    logger_mosaic_fraction.info("Parameters: %s", args)
+    logger_mosaic_fraction.info("Command: %s", python_command)
+
+
+    # 打开 BED 注释文件
+    try:
+        STR_refpanel_bed = pysam.TabixFile(bed_panel)
+    except Exception as e:
+        logger_mosaic_fraction.error("Failed to open BED panel: %s", str(e))
+        raise
+
+
+    try:
+        if chrom == "":
+            # 全基因组模式
+            total_tasks_count = sum(1 for _ in STR_refpanel_bed.fetch())
+            STR_refpanel_bed.close()
+            STR_refpanel_bed = pysam.TabixFile(bed_panel)  # 重新打开以重置迭代器
+            task_iter = task_generator(STR_refpanel_bed, mosaic_fraction_all_params)
         else:
-            for task in task_generator_given_region(
-                STR_refpanel_bed,
-                mosaic_fraction_all_params,
-                parse_params.chrom,
-                parse_params.start,
-                parse_params.end,
-            ):
-                main_per_locus_estimation(task[0], task[1])
-        logger_mosaic_fraction.info(
-            "Finish all STR loci stutter model estimation."
-        )
-        end_time = time.time()
-        logger_mosaic_fraction.info(
-            "End time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)),
-        )
-        total_time = end_time - start_time
-        logger_mosaic_fraction.info(
-            "Total time spent: %.2f seconds", total_time
-        )
-
-else:
-    # test multipleprocesses
-    def main():
-        python_command = " ".join([sys.executable] + sys.argv)
-        parse_params = cmd_args(args=sys.argv[1:])
-        (
-            genome_wide_info_dict,
-            mosaic_fraction_all_params,
-        ) = mosaic_fraction_estimate_prepare(parse_params)
-        STR_refpanel_bed = pysam.TabixFile(parse_params.bed_panel)
-        genome_wide_info_dict["commands"] = python_command
-        output_vcf.create_vcf_header(
-            genome_wide_info_dict, mosaic_fraction_all_params["vcf_output"]
-        )
-        start_time = time.time()
-        logger_mosaic_fraction = logger_config.mosaic_fraction_logger(
-            mosaic_fraction_all_params["loglevel"],
-            mosaic_fraction_all_params["log_to_file"],
-            mosaic_fraction_all_params["log_file"],
-        )
-        logger_mosaic_fraction.info(
-            "Start time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-        )
-        logger_mosaic_fraction.info("Parameters: %s", parse_params)
-        logger_mosaic_fraction.info("Command: %s", python_command)
-        MAX_THREADS = (
-            # Adjust this value based on your system's capabilities
-            parse_params.threads
-        )
-
-        if parse_params.chrom == "":
-            total_tasks_count = len(list(STR_refpanel_bed.fetch()))
-            # mosaic_fraction_all_params["STR_refpanel_bed"] = pysam.TabixFile(
-            #     parse_params.bed_panel
-            # )
-            # for task in task_generator(
-            #                 stutter_estimate_prep.STR_refpanel_bed,
-            #                 per_locus_parse_params,
-            #             ):
-            #     main_per_locus_estimation(task[0], task[1])
-            # 除非给定了 fetch 的坐标，否则调用了 fetch() 以后，再重新调用 fetch 后，fetch 的起始位置是上一次 fetch 的结束位置
-            with Manager() as manager:
-                pbar = manager.list([0])  # 使用Manager创建一个可共享的列表用于跟踪进度
-                #     total = 1700000  # 总任务数
-
-                def update_progress_bar(_):
-                    # 更新进度条的回调函数
-                    pbar[0] += 1
-                    progress_bar.update(1)
-
-                with Pool(processes=MAX_THREADS) as p:
-                    progress_bar = tqdm(total=total_tasks_count)
-                    try:
-                        for task in task_generator(
-                            STR_refpanel_bed,
-                            mosaic_fraction_all_params,
-                        ):
-                            p.apply_async(
-                                main_per_locus_estimation,
-                                args=task,
-                                callback=update_progress_bar,
-                            )
-
-                        p.close()
-                        p.join()
-                        progress_bar.close()  # 确保在所有任务完成后关闭进度条
-                    except Exception as e:
-                        traceback.print_exc()
-            # with concurrent.futures.ProcessPoolExecutor(
-            #     max_workers=MAX_THREADS
-            # ) as executor:
-            #     futures = [executor.submit(main_per_locus_estimation,stutter_estimate_prep ,arg) for arg in stutter_estimate_prep.STR_refpanel_bed.fetch()]
-            #     for future in concurrent.futures.as_completed(futures):
-            #         pass
-            # results = [future.result() for future in futures]
-            # list(executor.map(main_per_locus_estimation,
-            #                   stutter_estimate_prep.STR_refpanel_bed.fetch()))
-        else:
-            # for task in task_generator_given_region(
-            #                 stutter_estimate_prep.STR_refpanel_bed,
-            #                 per_locus_parse_params,
-            #                 parse_params.chrom,
-            #                 parse_params.start,
-            #                 parse_params.end,
-            #             ):
-            #     main_per_locus_estimation(task[0], task[1])
-            total_tasks_count = len(
-                list(
-                    STR_refpanel_bed.fetch(
-                        parse_params.chrom,
-                        parse_params.start,
-                        parse_params.end,
-                    )
-                )
+            # 区域模式
+            total_tasks_count = sum(1 for _ in STR_refpanel_bed.fetch(chrom, start, end))
+            STR_refpanel_bed.close()
+            STR_refpanel_bed = pysam.TabixFile(bed_panel)
+            task_iter = task_generator_given_region(
+                STR_refpanel_bed, mosaic_fraction_all_params, chrom, start, end
             )
-            # mosaic_fraction_all_params["STR_refpanel_bed"] = pysam.TabixFile(
-            #     parse_params.bed_panel
-            # )
+
+
+        if single_thread:
+            # 单线程模式（调试）
+            logger_mosaic_fraction.info("Running in single-threaded mode (debug).")
+            for task in task_iter:
+                main_per_locus_estimation(task[0], task[1])
+        else:
+            # 多进程模式
+            logger_mosaic_fraction.info(f"Running with {effective_threads} processes.")
             with Manager() as manager:
-                pbar = manager.list([0])  # 使用Manager创建一个可共享的列表用于跟踪进度
-                #     total = 1700000  # 总任务数
-
-                def update_progress_bar(_):
-                    # 更新进度条的回调函数
-                    pbar[0] += 1
-                    progress_bar.update(1)
-
-                with Pool(processes=MAX_THREADS) as p:
+                with Pool(processes=effective_threads) as pool:
                     progress_bar = tqdm(total=total_tasks_count)
-                    try:
-                        for task in task_generator_given_region(
-                            STR_refpanel_bed,
-                            mosaic_fraction_all_params,
-                            parse_params.chrom,
-                            parse_params.start,
-                            parse_params.end,
-                        ):
-                            p.apply_async(
-                                main_per_locus_estimation,
-                                args=task,
-                                callback=update_progress_bar,
-                            )
 
-                        p.close()
-                        p.join()
-                        progress_bar.close()  # 确保在所有任务完成后关闭进度条
-                    except Exception as e:
-                        traceback.print_exc()
-            # with concurrent.futures.ProcessPoolExecutor(
-            #     max_workers=MAX_THREADS
-            # ) as executor:
-            #     futures = [executor.submit(main_per_locus_estimation,stutter_estimate_prep ,arg) for arg in stutter_estimate_prep.STR_refpanel_bed.fetch(stutter_estimate_prep.parse_params.chrom, stutter_estimate_prep.parse_params.start, stutter_estimate_prep.parse_params.end)]
-            #     for future in concurrent.futures.as_completed(futures):
-            #         pass
-            # list(
-            #     executor.map(
-            #         main_per_locus_estimation,
-            #         stutter_estimate_prep.STR_refpanel_bed.fetch(stutter_estimate_prep.parse_params.chrom, stutter_estimate_prep.parse_params.start, stutter_estimate_prep.parse_params.end),
-            #     )
-            # )
-        logger_mosaic_fraction.info(
-            "Finish all STR loci mosaic fraction estimation."
-        )
-        end_time = time.time()
-        logger_mosaic_fraction.info(
-            "End time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)),
-        )
-        total_time = end_time - start_time
-        logger_mosaic_fraction.info(
-            "Total time spent: %.2f seconds", total_time
-        )
-        # stutter_estimate_prep.logger_stutter.info(
-        #     "End time: %s",
-        #     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
-        # )
+
+                    def update_progress(_):
+                        progress_bar.update(1)
+
+
+                    # 提交任务
+                    results = []
+                    for task in task_iter:
+                        r = pool.apply_async(
+                            main_per_locus_estimation,
+                            args=task,
+                            callback=update_progress,
+                            error_callback=lambda e: logger_mosaic_fraction.error("Task failed: %s", str(e))
+                        )
+                        results.append(r)
+
+
+                    # 等待完成
+                    for r in results:
+                        r.wait()
+                    pool.close()
+                    pool.join()
+                    progress_bar.close()
+
+
+    except Exception as e:
+        logger_mosaic_fraction.error("Pipeline failed: %s", str(e))
+        traceback.print_exc()
+        raise
+    finally:
+        STR_refpanel_bed.close()
+
+
+    # 结束日志
+    end_time = time.time()
+    logger_mosaic_fraction.info("Finish all STR loci mosaic fraction estimation.")
+    logger_mosaic_fraction.info("End time: %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)))
+    logger_mosaic_fraction.info("Total time spent: %.2f seconds", end_time - start_time)
+
 
 
 if __name__ == "__main__":
-    main()
-
-# python3 mosaic_calling.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/1485_v3_bulk_data_two_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/human_g1k_v37_decoy.hipstr_reference_startminusone_zerobased_leftcloserightopen_5bp_hmm_revised_sorted.bed.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/debug -l mosaic_calling_log -lf -f mosaic_calling_result -c 2 -s 118546013 -e 118546027 -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result/stutter_result_1_22_human_g1k_v37_decoy_1_22_0_1000000000_stutter_model_0331_2024_sorted.bed.gz -p /storage/douyanmeiLab/wangweixiang/data/phs001485.v3.p1_20230511/merged_Bulk.vcf.gz
-# ADD_FLANKING_PROB: False, "likelihood_mode": "seq-based", MAX_LIK_ALIGNMENT=True, "allele_filter": True, "max_allowable_allele_num": 4,allele sort true and binominal filter false: python3 mosaic_calling.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/1485_v3_bulk_data_two_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/human_g1k_v37_decoy.hipstr_reference_startminusone_zerobased_leftcloserightopen_5bp_hmm_revised_sorted.bed.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/debug -l mosaic_calling_log_seq_based -lf -f mosaic_calling_result_seq_based -c 2 -s 118546013 -e 118546027 -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result/stutter_result_1_22_human_g1k_v37_decoy_1_22_0_1000000000_stutter_model_0331_2024_sorted.bed.gz -p /storage/douyanmeiLab/wangweixiang/data/phs001485.v3.p1_20230511/merged_Bulk.vcf.gz
-# ADD_FLANKING_PROB: True, "likelihood_mode": "seq-based", MAX_LIK_ALIGNMENT=False, "allele_filter": True, "max_allowable_allele_num": 4,allele sort true and binominal filter false: python3 mosaic_calling.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/1485_v3_bulk_data_two_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/metadata/human_g1k_v37_decoy.hipstr_reference_startminusone_zerobased_leftcloserightopen_5bp_hmm_revised_sorted.bed.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/debug -l mosaic_calling_log_seq_based_non_maxlik_flanking -lf -f mosaic_calling_result_seq_based_non_maxlik_flanking -c 2 -s 118546013 -e 118546027 -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result/stutter_result_1_22_human_g1k_v37_decoy_1_22_0_1000000000_stutter_model_0331_2024_sorted.bed.gz -p /storage/douyanmeiLab/wangweixiang/data/phs001485.v3.p1_20230511/merged_Bulk.vcf.gz
-# if DEBUG:
-#     print(MaxMosaicLogLik)  # HACK: 0.06181240393947037
-#     print(GermlineLogLik)  # HACK: 0.0 why ?
-# return min(1, concordant_rate)  # HACK: exist issues for hap-based lik calculation and the value may exceed 1 for concordant_rate
-# GT 转换，
-# 记录错误信息 log
+    args = cmd_args()
+    run(
+        metadata=args.metadata,
+        reference_genome=args.reference_genome,
+        bed_panel=args.bed_panel,
+        output_dir=args.output_dir,
+        gene_model=args.gene_model,
+        stutter_model=args.stutter_model,
+        gnomad_freq_in=args.gnomad_freq_in,
+        phasing=args.phasing,
+        allele_imbalance=args.allele_imbalance,
+        loglevel=args.loglevel,
+        log_to_file=args.log_to_file,
+        vcf_out=args.vcf_out,
+        chrom=args.chrom,
+        start=args.start,
+        end=args.end,
+        threads=args.threads,
+        verbose=args.verbose,
+        debug=args.debug,
+        versions=args.versions,
+        single_thread=False,  # 可通过环境变量或额外参数控制
+    )

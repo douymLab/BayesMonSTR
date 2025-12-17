@@ -1,0 +1,12 @@
+2025-12-17 12:33:33,808 - StutterEstimator - INFO - StutterEstimator: Stutter Model Estimation Using Population Data
+2025-12-17 12:33:33,808 - StutterEstimator - INFO - Version: 1.0
+2025-12-17 12:33:33,809 - StutterEstimator - INFO - Start time: 2025-12-17 12:33:33
+2025-12-17 12:33:33,835 - StutterEstimator - INFO - Start stutter model estimation.
+2025-12-17 12:33:33,835 - StutterEstimator - INFO - Parameters: <stutter_model_estimation.run.<locals>.Args object at 0x1529c40e9520>
+2025-12-17 12:33:33,835 - StutterEstimator - INFO - Command: Python API call (stutter_estimator.run_stutter_estimation)
+2025-12-17 12:33:34,105 - StutterEstimator - INFO - The train function has not been invoked before, and we will train this locus from the beginning.
+2025-12-17 12:33:34,184 - StutterEstimator - INFO - Human_STR_1232500 has converged.
+2025-12-17 12:33:34,185 - StutterEstimator - INFO - Finish stutter model estimation for locus Human_STR_1232500
+2025-12-17 12:33:34,201 - StutterEstimator - INFO - Finish all STR loci stutter model estimation.
+2025-12-17 12:33:34,201 - StutterEstimator - INFO - End time: 2025-12-17 12:33:34
+2025-12-17 12:33:34,202 - StutterEstimator - INFO - Total time spent: 0.37 seconds

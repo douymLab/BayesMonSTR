@@ -1,0 +1,27 @@
+2025-12-17 12:35:27 | Starting optimized parallel deduplication with per-chromosome BAM output...
+2025-12-17 12:35:27 | Input BAM : ./resources/bam/demo1.chr6-43243669-43243695.bam
+2025-12-17 12:35:27 | BED file  : ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz
+2025-12-17 12:35:27 | Output BAM: ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam
+2025-12-17 12:35:27 | Threads   : 40
+2025-12-17 12:35:27 | Found 1 intervals.
+2025-12-17 12:35:27 | Processing 1 chromosomes in parallel...
+2025-12-17 12:35:27 | 🟢 Start processing chromosome chr6 (1 intervals)
+2025-12-17 12:35:27 | ✅ Finished chromosome chr6: 6 duplicates marked, BAM saved to /tmp/tmp5wq6t0he/dedup.chr6.bam
+2025-12-17 12:35:27 | === Final Statistics ===
+2025-12-17 12:35:27 | Total reads in BED intervals:        27
+2025-12-17 12:35:27 |   - No CB tag:                       0
+2025-12-17 12:35:27 | Duplicate groups detected:           21
+2025-12-17 12:35:27 | Reads marked as duplicate:           6
+2025-12-17 12:35:27 | Reads to clear duplicate mark:       1
+2025-12-17 12:35:27 | Reads to add duplicate mark:         3
+2025-12-17 12:35:27 | Conflicts resolved:                  0
+2025-12-17 12:35:27 | Modified reads list saved to: ./01deduplicate/demo1/modified_reads.txt
+2025-12-17 12:35:27 | ✅ Merged duplicate groups saved to: ./01deduplicate/demo1/duplicate_groups.txt
+2025-12-17 12:35:27 | ✅ Merged summary saved to: ./01deduplicate/demo1/summary.tsv
+2025-12-17 12:35:27 | Merging 1 chromosome BAMs into ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam.merged.tmp.bam...
+2025-12-17 12:35:27 | ✅ Sorting completed: ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam
+2025-12-17 12:35:27 | Indexing ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam...
+2025-12-17 12:35:27 | ✅ Index created: ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam.bai
+2025-12-17 12:35:27 | ✅ Final BAM: ./01deduplicate/demo1/demo1.chr6-43243669-43243695.deduplicated.bam
+2025-12-17 12:35:27 | ✅ Log: ./01deduplicate/demo1/deduplicate.log
+2025-12-17 12:35:27 | 🎉 All done.

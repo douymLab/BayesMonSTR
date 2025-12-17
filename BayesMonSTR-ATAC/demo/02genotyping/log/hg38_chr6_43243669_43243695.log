@@ -1,0 +1,104 @@
+2025-12-09 17:32:26,670 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:32:26,671 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:32:26,671 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:32:26
+2025-12-09 17:38:23,305 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:38:23,317 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:38:23,318 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:38:23
+2025-12-09 17:39:26,455 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:39:26,455 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:39:26,456 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:39:26
+2025-12-09 17:42:02,431 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:42:02,431 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:42:02,431 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:42:02
+2025-12-09 17:43:37,075 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:43:37,076 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:43:37,076 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:43:37
+2025-12-09 17:43:44,738 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:43:44,738 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:43:44,738 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:43:44
+2025-12-09 17:45:48,790 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:45:48,791 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:45:48,791 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:45:48
+2025-12-09 17:46:08,323 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:46:08,323 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:46:08,324 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:46:08
+2025-12-09 17:48:31,099 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:48:31,099 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:48:31,099 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:48:31
+2025-12-09 17:48:32,114 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:48:32
+2025-12-09 17:48:32,114 - MosaicFractionEstimator - INFO - Parameters: Namespace(metadata='./resources/genotyping_metadata.csv', reference_genome='/storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta', bed_panel='./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz', output_dir='./02genotyping', gene_model=None, stutter_model=None, gnomad_freq_in=None, phasing=None, allele_imbalance=None, loglevel='INFO', log_to_file=True, vcf_out=None, chrom='chr6', start=43243669, end=43243695, threads=1, verbose=0, debug=False, versions=False)
+2025-12-09 17:48:32,115 - MosaicFractionEstimator - INFO - Command: /home/douyanmeiLab/wangchunyi/conda/envs/BulkMonSTR/bin/python /storage/douyanmeiLab/wangchunyi/tools/BayesMonSTR/BayesMonSTR-ATAC/src/mosaic_calling.py genotyping -i ./resources/genotyping_metadata.csv -r /storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta -b ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz -s ./00stutter/stutter_result_uniq_sorted.bed.gz -o ./02genotyping -lf -c chr6 -s 43243669 -e 43243695 -t 1
+2025-12-09 17:48:32,116 - MosaicFractionEstimator - INFO - Running with 1 processes.
+2025-12-09 17:48:32,205 INFO This locus is not callable because Germline.
+2025-12-09 17:48:32,205 - MosaicFractionEstimator - INFO - Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:48:32,205 INFO Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:48:32,341 INFO The train function has not been invoked before, and we will train this locus from the beginning.
+2025-12-09 17:48:32,625 INFO Human_STR_1232500 has converged.
+2025-12-09 17:48:32,669 INFO This locus is not callable because Germline.
+2025-12-09 17:48:32,669 - MosaicFractionEstimator - INFO - Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:48:32,669 INFO Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:48:32,670 - MosaicFractionEstimator - INFO - Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:48:32,670 INFO Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:48:32,683 - MosaicFractionEstimator - INFO - Finish all STR loci mosaic fraction estimation.
+2025-12-09 17:48:32,683 - MosaicFractionEstimator - INFO - End time: 2025-12-09 17:48:32
+2025-12-09 17:48:32,683 - MosaicFractionEstimator - INFO - Total time spent: 0.57 seconds
+2025-12-09 17:49:58,936 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:49:58,936 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:49:58,936 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:49:58
+2025-12-09 17:49:58,946 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:49:58
+2025-12-09 17:49:58,947 - MosaicFractionEstimator - INFO - Parameters: Namespace(metadata='./resources/genotyping_metadata.csv', reference_genome='/storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta', bed_panel='./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz', output_dir='./02genotyping', gene_model=None, stutter_model=None, gnomad_freq_in=None, phasing=None, allele_imbalance=None, loglevel='INFO', log_to_file=True, vcf_out=None, chrom='chr6', start=43243669, end=43243695, threads=1, verbose=0, debug=False, versions=False)
+2025-12-09 17:49:58,947 - MosaicFractionEstimator - INFO - Command: /home/douyanmeiLab/wangchunyi/conda/envs/BulkMonSTR/bin/python /storage/douyanmeiLab/wangchunyi/tools/BayesMonSTR/BayesMonSTR-ATAC/src/mosaic_calling.py genotyping -i ./resources/genotyping_metadata.csv -r /storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta -b ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz -s ./00stutter/stutter_result_uniq_sorted.bed.gz -o ./02genotyping -lf -c chr6 -s 43243669 -e 43243695 -t 1
+2025-12-09 17:49:58,949 - MosaicFractionEstimator - INFO - Running with 1 processes.
+2025-12-09 17:49:59,013 INFO This locus is not callable because Germline.
+2025-12-09 17:49:59,013 - MosaicFractionEstimator - INFO - Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:49:59,013 INFO Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:49:59,116 INFO The train function has not been invoked before, and we will train this locus from the beginning.
+2025-12-09 17:49:59,403 INFO Human_STR_1232500 has converged.
+2025-12-09 17:49:59,421 INFO This locus is not callable because Germline.
+2025-12-09 17:49:59,422 - MosaicFractionEstimator - INFO - Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:49:59,422 INFO Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:49:59,423 - MosaicFractionEstimator - INFO - Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:49:59,423 INFO Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:49:59,435 - MosaicFractionEstimator - INFO - Finish all STR loci mosaic fraction estimation.
+2025-12-09 17:49:59,436 - MosaicFractionEstimator - INFO - End time: 2025-12-09 17:49:59
+2025-12-09 17:49:59,436 - MosaicFractionEstimator - INFO - Total time spent: 0.49 seconds
+2025-12-09 17:50:16,404 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-09 17:50:16,405 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-09 17:50:16,405 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:50:16
+2025-12-09 17:50:16,415 - MosaicFractionEstimator - INFO - Start time: 2025-12-09 17:50:16
+2025-12-09 17:50:16,415 - MosaicFractionEstimator - INFO - Parameters: Namespace(metadata='./resources/genotyping_metadata.csv', reference_genome='/storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta', bed_panel='./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz', output_dir='./02genotyping', gene_model=None, stutter_model=None, gnomad_freq_in=None, phasing=None, allele_imbalance=None, loglevel='INFO', log_to_file=True, vcf_out=None, chrom='chr6', start=43243669, end=43243695, threads=1, verbose=0, debug=False, versions=False)
+2025-12-09 17:50:16,416 - MosaicFractionEstimator - INFO - Command: /home/douyanmeiLab/wangchunyi/conda/envs/BulkMonSTR/bin/python /storage/douyanmeiLab/wangchunyi/tools/BayesMonSTR/BayesMonSTR-ATAC/src/mosaic_calling.py genotyping -i ./resources/genotyping_metadata.csv -r /storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta -b ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz -s ./00stutter/stutter_result_uniq_sorted.bed.gz -o ./02genotyping -lf -c chr6 -s 43243669 -e 43243695 -t 1
+2025-12-09 17:50:16,417 - MosaicFractionEstimator - INFO - Running with 1 processes.
+2025-12-09 17:50:16,460 INFO This locus is not callable because Germline.
+2025-12-09 17:50:16,460 - MosaicFractionEstimator - INFO - Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:50:16,460 INFO Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:50:16,562 INFO The train function has not been invoked before, and we will train this locus from the beginning.
+2025-12-09 17:50:16,855 INFO Human_STR_1232500 has converged.
+2025-12-09 17:50:16,873 INFO This locus is not callable because Germline.
+2025-12-09 17:50:16,874 - MosaicFractionEstimator - INFO - Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:50:16,874 INFO Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-09 17:50:16,874 - MosaicFractionEstimator - INFO - Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:50:16,874 INFO Finish mosaic calling for locus Human_STR_1232500
+2025-12-09 17:50:16,887 - MosaicFractionEstimator - INFO - Finish all STR loci mosaic fraction estimation.
+2025-12-09 17:50:16,888 - MosaicFractionEstimator - INFO - End time: 2025-12-09 17:50:16
+2025-12-09 17:50:16,888 - MosaicFractionEstimator - INFO - Total time spent: 0.47 seconds
+2025-12-17 12:39:18,747 - MosaicFractionEstimator - INFO - MosaicFractionEstimator: Mosaic Fraction Estimation Using Individual Data
+2025-12-17 12:39:18,757 - MosaicFractionEstimator - INFO - Version: 1.0
+2025-12-17 12:39:18,757 - MosaicFractionEstimator - INFO - Start time: 2025-12-17 12:39:18
+2025-12-17 12:39:18,804 - MosaicFractionEstimator - INFO - Start time: 2025-12-17 12:39:18
+2025-12-17 12:39:18,804 - MosaicFractionEstimator - INFO - Parameters: Namespace(metadata='./resources/genotyping_metadata.csv', reference_genome='/storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta', bed_panel='./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz', output_dir='./02genotyping', gene_model=None, stutter_model='./00stutter/stutter_result_uniq_sorted.bed.gz', gnomad_freq_in=None, phasing=None, allele_imbalance=None, loglevel='INFO', log_to_file=True, vcf_out=None, chrom='chr6', start=43243669, end=43243695, threads=40, verbose=0, debug=False, versions=False)
+2025-12-17 12:39:18,804 - MosaicFractionEstimator - INFO - Command: /home/douyanmeiLab/wangchunyi/conda/envs/BulkMonSTR/bin/python /storage/douyanmeiLab/wangchunyi/tools/BayesMonSTR/BayesMonSTR-ATAC/src/mosaic_calling.py genotyping --metadata ./resources/genotyping_metadata.csv --reference-genome /storage/douyanmeiLab/wangchunyi/reference/GRCh38/Homo_sapiens_assembly38.fasta --bed-panel ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz --stutter-model ./00stutter/stutter_result_uniq_sorted.bed.gz --output-dir ./02genotyping --chrom chr6 --start 43243669 --end 43243695
+2025-12-17 12:39:18,805 - MosaicFractionEstimator - INFO - Running with 40 processes.
+2025-12-17 12:39:19,020 INFO This locus is not callable because Germline.
+2025-12-17 12:39:19,021 - MosaicFractionEstimator - INFO - Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-17 12:39:19,021 INFO Sample demo1 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-17 12:39:19,119 INFO The train function has not been invoked before, and we will train this locus from the beginning.
+2025-12-17 12:39:19,359 INFO Human_STR_1232500 has converged.
+2025-12-17 12:39:19,375 INFO This locus is not callable because Germline.
+2025-12-17 12:39:19,375 - MosaicFractionEstimator - INFO - Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-17 12:39:19,375 INFO Sample demo3 and Locus Human_STR_1232500 chr6:43243669-43243695 is not usable because Germline
+2025-12-17 12:39:19,376 - MosaicFractionEstimator - INFO - Finish mosaic calling for locus Human_STR_1232500
+2025-12-17 12:39:19,376 INFO Finish mosaic calling for locus Human_STR_1232500
+2025-12-17 12:39:19,440 - MosaicFractionEstimator - INFO - Finish all STR loci mosaic fraction estimation.
+2025-12-17 12:39:19,440 - MosaicFractionEstimator - INFO - End time: 2025-12-17 12:39:19
+2025-12-17 12:39:19,441 - MosaicFractionEstimator - INFO - Total time spent: 0.64 seconds

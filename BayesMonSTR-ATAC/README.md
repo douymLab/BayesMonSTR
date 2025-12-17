@@ -1,75 +1,112 @@
-# BulkMonSTR
+## BayesMonSTR-ATAC
 
-**BulkMonSTR** is a computational tool designed for detecting **mosaic mutations** in **short tandem repeat (STR) regions** without matched controls, and is capable of detecting **short contractions, expansions, and interruption mosaic mutations** within repeat regions.
+**BayesMonSTR-ATAC** is a computational method for detecting **mosaic mutations** in **short tandem repeat (STR) regions** from **single-nucleus ATAC-sequencing data**. It enables sensitive identification of repeat contractions, expansions, and interruption-type mosaic mutations within STR loci.
+It provides an end-to-end workflow including read deduplication, stutter model estimation, mosaic genotyping, population information extraction, and post-calling filtering.
 
-**BulkMonSTR is still in testing**, and as such, it includes several unnecessary steps and output that are primarily used for **debugging purposes**. These steps and redundant output will be streamlined and optimized in future versions of the software.
-
-
-# Table Contents
-
+- [BayesMonSTR-ATAC](#bayesmonstr-atac)
 - [Installation](#installation)
 - [Demo](#demo)
 - [Considerations](#considerations)
-- [BulkMonSTR workflow](#bulkmonstr-workflow)
+- [BayesMonSTR-ATAC workflow](#bayesmonstr-atac-workflow)
   - [1. Estimation of locus-based stutter model (all samples)](#1-estimation-of-locus-based-stutter-model-all-samples)
-  - [2. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)](#2-estimation-of-mosaic-fraction-and-mosaic-genotyping-all-samples)
-  - [3. Extraction of population information (all samples)](#3-extraction-of-population-information-all-samples)
-  - [4. Initial Hard Filtering for Each Sample (single sample)](#4-initial-hard-filtering-for-each-sample-single-sample)
-  - [5. Extraction of features (single sample)](#5-extraction-of-features-single-sample)
-  - [6. BulkMonSTR prediction](#6-bulkmonstr-prediction)
-- [Run in batch scripts](#run-in-batch-scripts)
-- [Pipeline optimized for clonal samples](#pipeline-optimized-for-clonal-samples)
-- [Q\&A](#qa)
+  - [2. Removing duplicate reads from snATAC-seq data (single sample)](#2-removing-duplicate-reads-from-snatac-seq-data-single-sample)
+  - [3. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)](#3-estimation-of-mosaic-fraction-and-mosaic-genotyping-all-samples)
+  - [4. Extraction of population information (all samples)](#4-extraction-of-population-information-all-samples)
+  - [5. Filtering for Each Sample (single sample)](#5-filtering-for-each-sample-single-sample)
 - [Citation](#citation)
+- [License](#license)
+- [Contact](#contact)
 
+---
 
 ## Installation
 To set up the environment and install the necessary dependencies, follow the instructions below:
 ```bash
-git clone https://github.com/Lidweixiang/BulkMonSTR.git
-conda env create -f BulkMonSTR/environment.yaml
-conda activate BulkMonSTR
+git clone https://github.com/douymLab/BayesMonSTR
+conda env create -f BayesMonSTR-ATAC/environment.yaml
+conda activate BayesMonSTR-ATAC
+pip install -e BayesMonSTR-ATAC
 bcftools should be downloaded from https://github.com/samtools/bcftools
 ```
 
+---
 
 ## Demo
-A **demo dataset** is available in the `demo` directory, which can be used for testing the tool and familiarizing yourself with the workflow. The demo example involves a STR locus (motif is AC) mutated from **T** to **TAC** with a stutter error rate of **0.05** and a mosaic fraction of **0.1**.
+A **demo dataset** is available in the `demo` directory, which can be used for testing the tool and familiarizing yourself with the workflow. Before running the demo, please download the reference genome file and ensure it is available in the  `demo/resources/` directory—either as a direct copy or via a symbolic link. To run the demo, navigate to the `demo` directory and execute the scripts directly from the `scripts` directory. In the demo, due to the small data size, estimating population parameters is prone to bias; therefore, population-related filtering has not been applied. For real datasets with a sufficiently large sample size, it is recommended to include population-level filtering.
 
+---
 
-## Considerations
-- HG38/GRCH38 is recommended in current version
-- PCR-free sequencing is recommended
-- BulkMonSTR is not optimized for **large repeat expansions** or **clonal tumor samples** currently.
-- BulkMonSTR in **low-depth samples（30x）** has not been optimized, making it more challenging to distinguish **mosaic mutations** from **germline variants** in such cases.
-- In our preliminary tests, analyzing **200** whole-genome sequencing (**～1.6 millons STR loci**) samples at **30-50x** depth took approximately **1-2 weeks** using **1600** cpus, so please ensure the software is **suitable** for your use case before running large-scale analyses.
+## BayesMonSTR-ATAC workflow
 
+Run BayesMonSTR-ATAC:
 
-## BulkMonSTR workflow
+```bash
+bayesmonstr-atac --help
+```
+
+You will see the available subcommands:
+
+```text
+stutter        Run stutter model estimation
+deduplicate   Remove duplicate reads from snATAC-seq data
+genotyping    Run mosaic genotyping
+pop            Extract population information from BulkMonSTR VCF
+filter         Filter genotyping results
+```
+
+Each subcommand has its own options and help message.
+
+---
+
 
 ### 1. Estimation of locus-based stutter model (all samples)
----
+
 **Notice:** It is important to emphasize that if the mosaic mutation is recurrent across different samples, the **stutter error rate** may be **overestimated**.
 We recommend using more than **20 unrelated individuals** or samples (**avoid much recurrent mutations**) with a sequencing depth of at least **30×** to estimate the stutter error model accurately.
 
-The stutter model can be estimated using the following command:
-
-```sh
-python3 ~/BulkMonSTR/src/stutter_model_estimation.py \  # Run the stutter model estimation script
-    -i ${metadata} \  # Input metadata file as below
-    -r ${ref} \  # Reference genome FASTA file
-    -b ${bed} \  # 0-based STR regions BED file (bgzip compression and tabix indexing)
-    -p ${result} \  # Output directory for results
-    -l stutter_log \  # Output file name prefix for logs
-    -lf \  # Enable log file mode (flag parameter)
-    -q stutter_result \  # Output file name prefix for results
-    -c chr1 \  # Select chromosome for analysis
-    -s 30216700 \  # Start coordinate of the region of interest
-    -e 30216750 \  # End coordinate of the region of interest
-    -t 1  # Number of threads to use for processing
-bgzip ~/BulkMonSTR/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt
-tabix -p bed ~/BulkMonSTR/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz
+```bash
+bayesmonstr-atac stutter \
+  --metadata metadata.csv \
+  --reference-genome reference.fa \
+  --bed-panel str_panel.bed.gz \
+  --output-dir output_dir
 ```
+
+**Options**
+
+* `--metadata, -i` : Metadata CSV file (Sample name and bam_path must be specific.) 
+
+    | Ind              | Sample Name              | Sex     | Tissue  | sequencing_type | bam_path                                                                 | mosdepth_wgs_mean_depth | used_genotyping_str_mean_depth | seq_tech |
+    |------------------|------------------|--------|---------|----------------|------------------------------------------------------------------------|-------------------------|--------------------------------|---------|
+    | SRR13873087 | SRR13873087 | male | LCL | WGS            | ./resources/stutter_bam/SRR13873087_chr6_43243669_43243695.bam | 300                    | 300                           | illumina |
+
+* `--reference-genome, -r` : Reference genome FASTA
+* `--bed-panel, -b` : STR annotation BED file. 
+    We use the **STR reference panel** from **HipSTR**, which can be downloaded from: [HipSTR Reference Panel](https://github.com/HipSTR-Tool/HipSTR-references). The HipSTR panel uses a **1-based** coordinate system. If you are using this panel, you must **convert it to a 0-based format** by subtracting **1** from the values in the second column. Alternatively, you can format your own STR loci following the **HipSTR BED file format**.  
+* `--output-dir, -o` : Output directory.
+    The stutter model results are saved in the following directory: `${output-dir}/results`,and the key columns are as following:
+
+    | Key Columns | Description |
+    |--------------|-------------|
+    | `1th column`  | chromosome |
+    | `2th column`   | zero-base STR start(close) |
+    | `3th column`      | zero-base STR end(open) |
+    | `4th column`   | Motif length |
+    | `5th column`    | Period |
+    | `6th column` | STR id |
+    | `7th column` | Motif |
+    | `23th column`  | In-frame insertion rate |
+    | `24th column`   | In-frame deletion rate |
+    | `25th column`      | In-frame step-size rate |
+    | `26th column`   | Out-frame insertion rate |
+    | `27th column`    | Out-frame deletion rate |
+    | `28th column` | Out-frame step-size rate |
+* `--loglevel, -ll` : Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
+* `--log-to-file, -lf` : Whether save log to file (default: `True`)
+* `--chrom, -c` : Chromosome (default: empty)
+* `--start, -s` : Genomic start position (default: `0`)
+* `--end, -e` : Genomic end position (default: `1000000000`)
+* `--threads, -t` : Number of threads to use (default: -1, use all available cores)
 
 If the interval regions are processed in parallel, you should merge all the stutter results from the different intervals.
 
@@ -80,287 +117,126 @@ sort -k1,1 -k2,2n -k3,3n stutter_result_uniq.txt >> stutter_result_uniq_sorted.b
 bgzip stutter_result_uniq_sorted.bed
 tabix -p bed stutter_result_uniq_sorted.bed.gz
 ```
-
-- **Parameters**:
-
-| Parameter | Description |
-|-----------|-------------|
-| `-i` | **Input metadata file** containing information about the samples and their respective STR regions. This is required to run the stutter model estimation. |
-| `-r` | **Reference genome FASTA file**. This file serves as the reference genome against which the STR regions are aligned. |
-| `-b` | **0-based STR regions BED file**. This file specifies the start and end coordinates of the STR regions of interest, and it should be compressed using bgzip and indexed with tabix. |
-| `-p` | **Output directory for results**. The results of the stutter model estimation will be saved in this directory. |
-| `-l` | **Log file name prefix**. Logs of the estimation process will be saved using this prefix. Each log file will be appended with additional details (e.g., timestamps). |
-| `-lf` | **Enable log file mode**. This flag activates logging of the process. When this is specified, the script writes logs to the files specified by the `-l` parameter. |
-| `-q` | **Output file name prefix for results**. The stutter model results (e.g., estimated stutter error rates) will be saved using this prefix. |
-| `-c` | **Chromosome for analysis**. Specifies which chromosome the analysis will focus on. In this example, chromosome 1 (`chr1`) is chosen. |
-| `-s` | **Start coordinate**. Defines the starting position (coordinate) of the region of interest within the selected chromosome. |
-| `-e` | **End coordinate**. Defines the end position (coordinate) of the region of interest within the selected chromosome. |
-| `-t` | **Number of threads**. Specifies the number of threads to be used for parallel processing. In this example, only 1 thread is used. |
-
-- The **metadata file** consists of the following columns:
-
-| Ind              | Ind              | Sex     | Tissue  | sequencing_type | bam_path                                                                 | mosdepth_wgs_mean_depth | used_genotyping_str_mean_depth | seq_tech |
-|------------------|------------------|--------|---------|----------------|------------------------------------------------------------------------|-------------------------|--------------------------------|---------|
-| HG002_1 | HG002 | male | LCL | WGS            | ~/BulkMonSTR/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_1.bam | 300                    | 300                           | illumina |
-| HG002_2 | HG002 | male | LCL | WGS            | ~/BulkMonSTR/demo/bam/Human_STR_21293_chr1_30216713_st_0p05_2.bam | 300                    | 300                           | illumina |
-
-
-- **BED file**: We use the **STR reference panel** from **HipSTR**, which can be downloaded from:  
-  [HipSTR Reference Panel](https://github.com/HipSTR-Tool/HipSTR-references).  
-  Alternatively, you can format your own STR loci following the **HipSTR BED file format**.  
-
-  **Note:** The HipSTR panel uses a **1-based** coordinate system. If you are using this panel, you must **convert it to a 0-based format** by subtracting **1** from the values in the second column.
-
-- **Output file**: The stutter model results are saved in the following directory: `${result}/stutter_results`,and the key columns are as following:
-
-| Key Columns | Description |
-|--------------|-------------|
-| `1th column`  | chromosome |
-| `2th column`   | zero-base STR start(close) |
-| `3th column`      | zero-base STR end(open) |
-| `4th column`   | Motif length |
-| `5th column`    | Period |
-| `6th column` | STR id |
-| `7th column` | Motif |
-| `23th column`  | In-frame insertion rate |
-| `24th column`   | In-frame deletion rate |
-| `25th column`      | In-frame step-size rate |
-| `26th column`   | Out-frame insertion rate |
-| `27th column`    | Out-frame deletion rate |
-| `28th column` | Out-frame step-size rate |
-
-### 2. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)
 ---
-The mosaic genotyping can be executed using the following command:
 
-```sh
-python3 ~/BulkMonSTR/src/mosaic_calling.py \  # Run the mosaic genotyping script
-    -i ${metadata} \  # Input metadata file like estimation of stutter error step
-    -r ${ref} \  # Reference genome FASTA file
-    -b ${bed} \  # 0-based STR regions BED file
-    -o ${result} \  # Output directory for results
-    -l mosaic_calling_log_seq_based \  # Output file name prefix for logs
-    -lf \  # Enable log file mode (flag parameter)
-    -f mosaic_calling_result_seq_based \  #  Output file name prefix for results
-    -c ${chr} \  # Select chromosome for analysis
-    -s ${start} \  # Start coordinate of the region of interest
-    -e ${end} \  # End coordinate of the region of interest
-    -t 1 \  # Number of threads to use for processing, here is TODO list
-    -si ${stutter_model} \  # Stutter model file from last step (bgzip compression and tabix indexing)
-    -p ${nearby_snp}  # Optional germline variants VCF file (optionally compressed with bgzip and indexed with tabix); if specified, read-based phasing haplotypes will be output
-bgzip ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf
-tabix -p vcf ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
-bcftools sort -Oz -o ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.vcf.gz
-tabix -p vcf ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz
+### 2. Removing duplicate reads from snATAC-seq data (single sample)
+
+Remove duplicate reads from snATAC-seq BAM files.
+
+```bash
+bayesmonstr-atac deduplicate \
+  --input-bam input.bam \
+  --bed-panel str_panel.bed.gz \
+  --output-bam dedup.sorted.bam
 ```
 
-If the interval regions are processed in parallel, you should merge all the calling results from the different intervals. The scripts from ~/BulkMonSTR/scripts can do that for you (Notice: this step need more memory depends on your mosaic calling files size):
+**Options**
 
-```sh
-bash ~/BulkMonSTR/scripts/merge_interval_results.sh \
-$input_dir \  # A directory include all mosaic calling results
-$output_dir \  # The directory you want to save the merged calling results
-$prefix  # The saved filename prefix
-```
+* `--input-bam, -i` : Input BAM file
+* `--bed-panel, -b` : STR BED file
+* `--output-bam, -o` : Output sorted BAM file
+* `--threads, -t` : Number of threads to use (default: -1, use all available cores)
 
-- **Parameters**:
-
-| Parameter | Description |
-|-----------|-------------|
-| `-i` | **Input metadata file**. This file contains information about the samples and their respective STR regions, similar to the stutter error estimation step. |
-| `-r` | **Reference genome FASTA file**. This is the reference genome used for alignment and comparison of STR regions. |
-| `-b` | **0-based STR regions BED file**. This file contains the coordinates of the STR regions of interest, formatted in BED format. |
-| `-o` | **Output directory for results**. The mosaic genotyping results will be saved in this directory. |
-| `-l` | **Log file name prefix**. This prefix will be used for log files generated during the mosaic calling process. |
-| `-lf` | **Enable log file mode**. When specified, the script will log the process and store logs using the specified log file prefix. |
-| `-f` | **Output file name prefix for results**. This prefix will be used for the mosaic genotyping result files. |
-| `-c` | **Chromosome for analysis**. This parameter specifies which chromosome to analyze (e.g., `chr1`). |
-| `-s` | **Start coordinate**. Defines the start position of the region of interest within the specified chromosome. |
-| `-e` | **End coordinate**. Defines the end position of the region of interest within the specified chromosome. |
-| `-t 1` | **Number of threads**. Specifies the number of threads to use for processing. In this example, only 1 thread is used. |
-| `-si` | **Stutter model file**. The stutter model generated from the previous step, which is used to help estimate the stutter errors in the STR regions. This file should be compressed with bgzip and indexed with tabix. |
-| `-p` | **Optional germline variants VCF file**. This is an optional VCF file containing germline variants that can be used to phase the haplotypes. The file can be compressed with bgzip and indexed with tabix. If specified, read-based phasing haplotypes will be output. |
-
-### 3. Extraction of population information (all samples)
 ---
-If you have more than **20 unrelated samples**, we recommend leveraging population data to filter BulkMonSTR outputs. This helps **eliminate common germline variants and recurrent noise**, such as mapping errors and stutter errors.
-However, if mosaic STR mutations **recur in your samples due to selective advantage of driver mutations** across individuals, population-based filtering may **not be appropriate**. Alternatively, you can apply a lenient threshold in the **initial hard filter step**.
-Below is a script to extract population information from BulkMonSTR output:
 
-```sh
-python3 ~/BulkMonSTR/src/extract_pop_infors.py \
-  -v ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \  # BulkMonSTR Genotyping Output
-  -o ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output.txt
-bgzip ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output.txt
-tabix -p bed ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output.txt.gz
-bgzip ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt
-tabix -p bed ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz
+### 3. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)
+
+Perform mosaic STR mutation calling.
+
+```bash
+bayesmonstr-atac genotyping \
+  --metadata metadata.csv \
+  --reference-genome reference.fa \
+  --bed-panel str_panel.bed.gz \
+  --stutter-model stutter.bed.gz \
+  --output-dir results/
 ```
-- **Parameters**:
 
-| Parameter | Description |
-|-----------|-------------|
-| `-v ` | **VCF file path**. Path to the BulkMonSTR Genotyping output VCF file containing mosaic STR variant information. This VCF file should contain the genotyping results. |
-| `-o ` | **Output file path**. The output file where population information will be extracted and stored. |
+**Options**
 
-### 4. Initial Hard Filtering for Each Sample (single sample)
+* `--metadata, -i` : Adapt the metadata CSV from the stutter error estimation step by updating the sample names and BAM paths to your input samples and deduplicated BAM files.
+* `--reference-genome, -r` : Reference genome FASTA
+* `--bed-panel, -b` : STR annotation BED
+* `--output-dir, -o` : Output directory
+* `--stutter-model, -s` : The stutter model generated from the previous step, which is used to help estimate the stutter errors in the STR regions. This file should be compressed with bgzip and indexed with tabix.
+* `--loglevel, -ll` : Logging level
+* `--log-to-file, -lf` : Whether save log to file (default: `True`)
+* `--chrom, -c` : Chromosome (default: empty)
+* `--start, -s` : Genomic start position (default: `0`)
+* `--end, -e` : Genomic end position (default: `1000000000`)
+* `--threads, -t` : Number of threads to use (default: -1, use all available cores)
+
 ---
-To reduce the number of loci for feature extraction, we can apply initial hard filters to remove **potential germline variants or artifact loci** beforehand (Notice: this step takes up several hours in single thread because it's too slow for frequently fetching single STR locus from bed or fasta use pysam).
 
-```sh
-python3 ~/BulkMonSTR/src/initial_hard_filter.py \
-  -v ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
-  -s Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1 \
-  -o ~/BulkMonSTR/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1.bed \
-  -p 0.9 \
-  -m 3 \
-  -u 0.8 \
-  -l 0.01 \
-  -d 10 \
-  -ms 18 \
-  -pgi 0.3 \
-  -r 0.3 \
-  -bf ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output.txt.gz \
-  -rf ~/BulkMonSTR/demo/extract_pop_infors_test/pop_infors_output_mosaic_recurrent_info.txt.gz \
-  -cf 0.2 \
-  -ep your_str_population_panel \
-  -b your_bgzip_bed_for_exclude_specific_regions \
-  -re your_reference_genome_FASTA_file
+### 4. Extraction of population information (all samples)
+
+If you have more than **20 unrelated samples**, we recommend leveraging population data to filter BayesMonSTR-ATAC outputs. This helps **eliminate common germline variants and recurrent noise**, such as mapping errors and stutter errors.
+However, if mosaic STR mutations **recur in your samples due to selective advantage of driver mutations** across individuals, population-based filtering may **not be appropriate**. Alternatively, you can apply a lenient threshold in the **filter step**.
+
+```bash
+bayesmonstr-atac pop \
+  --vcf-file mosaic_fraction_estimation_results.vcf.gz \
+  --output-file pop_infors_output.txt
 ```
 
-- **Parameters**:
+**Options**
 
-| Parameter | Description | Required/Optional |
-|-----------|-------------|------------------|
-| `-v, --vcf_file` | Path to the input VCF file containing mosaic STR variants from BulkMonSTR. | **Required** |
-| `-s, --sample_name` | Name of the sample to be processed. | **Required** |
-| `-o, --output_file` | Path to the output file where filtered loci will be stored. | **Required** |
-| `-p, --posterior_filter` | Posterior probability threshold (default: `0.9`). A lower threshold is recommended for low-depth samples. | **Required** |
-| `-m, --mutant_dp_filter` | Minimum mutant depth (DP) required to retain a locus (default: `3`). | **Required** |
-| `-u, --upper_vaf_filter` | Upper variant allele frequency (VAF) threshold (default: `0.8`). Variants with a VAF higher than this will be filtered. | **Required** |
-| `-l, --lower_vaf_filter` | Lower VAF threshold (default: `0.01`). Variants with a VAF lower than this will be filtered. | **Required** |
-| `-d, --min_depth_filter` | Minimum sequencing depth required for a locus to pass filtering (default: `10`). | **Required** |
-| `-ms, --max_mutation_length` | Maximum mutation length allowed (default: `18` base pairs). | **Required** |
-| `-pgi, --pop_gi_filter` | Population allele frequency filter threshold to exclude common germline variants (default: `0.3`). | **Required** |
-| `-r, --recurrent_filter` | Recurrent mutation filtering threshold (default: `0.1`). | **Required** |
-| `-bf, --pop_gi_file` | Path to the file containing population allele frequency data. | **Optional** |
-| `-rf, --recurrent_filter_file` | Path to the file containing information on recurrent mutations in the population. | **Optional** |
-| `-cf, --callable_filter` | Callable fraction filter threshold (default: `0.2`). | **Required** |
-| `-ep, --external_population_panel` | Path to an external population panel for filtering. | **Optional** |
-| `-b, --bed_filter_out` | BED file listing loci to be filtered out. This typically includes low-mappability and segmental duplication regions. | **Optional** |
-| `-re, --reference_fasta` | Path to the reference genome FASTA file. | **Required if use external population panel** |
-| `-hnf, --het_no_filter` | Retain heterozygous sites to capture potential clonal mosaic mutations with VAF ≈ 0.5. | **Optional** |
+* `--vcf-file, -v` : The VCF file generated from genotyping step
+* `--output-file, -o` : Output file path
 
-
-### 5. Extraction of features (single sample)
 ---
-**Locus-based features** and **read-level features** are extracted from the genotyping results for the subsequent prediction step.
-```sh
-python3 ~/BulkMonSTR/src/extract_features.py \
-      -i ~/BulkMonSTR/demo/extract_features_test/metadata/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.csv \
-      -r your_reference_genome_FASTA_file \
-      -b ~/BulkMonSTR/demo/initial_hard_filter_test/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_1_sorted.bed.gz \
-      -o ~/BulkMonSTR/demo/extract_features_test/extract_features_output \
-      -l extract_features_log \
-      -lf \
-      -vi ~/BulkMonSTR/demo/mosaic_genotyping_test/mosaic_genotyping_output/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz \
-      -si ~/BulkMonSTR/demo/stutter_model_test/stutter_output/stutter_results/stutter_result_hg38_chr1_30216700_30216750_stutter_model.txt.gz \
-      -fo feature_output_1 \
-      -ma ~/BulkMonSTR/resource/hg38_k24_k100_mappability.bed.gz \
-      -c chr1 \
-      -s 30216700 \
-      -e 30216750
+
+### 5. Filtering for Each Sample (single sample)
+
+Apply multiple filters to mosaic genotyping results for a given sample and region.
+
+```bash
+bayesmonstr-atac filter \
+  --sample SAMPLE1 \
+  --reference-genome reference.fa \
+  --vcf mosaic_fraction_estimation_results.vcf.gz \
+  --stutter-model stutter_model.bed.gz \
+  --cell-barcode barcodes.txt \
+  --mappability mappability.bed \
+  --metadata features.csv \
+  --pop-info population_info.txt \
+  --recurrent-info recurrent.txt
 ```
-- **Parameters**:
 
-| Parameter | Description |
-|-----------|-------------|
-| `-i` | **Metadata file path**. Path to the input metadata file, which should only include a header and data for a single sample. |
-| `-r` | **Reference genome FASTA file**. Path to the reference genome file in FASTA format. |
-| `-b` | **BED file path**. Path to the BED file containing 0-based STR regions from the output of hard filtering step. |
-| `-o` | **Output directory**. The directory where the feature extraction results will be stored. |
-| `-l` | **Log file name prefix**. Prefix for the log file generated during the feature extraction process. |
-| `-lf` | **Enable log file mode**. Flag to enable logging during execution. |
-| `-vi` | **VCF file path**. The path to the VCF file containing mosaic genotyping results (from a previous mosaic calling step). |
-| `-si` | **Stutter model file**. Path to the stutter model file generated from a previous step. This file should be bgzip-compressed and indexed with tabix. |
-| `-fo` | **Feature output prefix**. Prefix for the feature output files generated during the extraction process. |
-| `-ma` | **Mappability BED file**. Path to a BED file containing mappability information (K24 and K100) for regions in the reference genome. |
-| `-c` | **Chromosome selection**. Specifies which chromosome to focus on (e.g., `chr1`). |
-| `-s` | **Start coordinate**. The starting coordinate of the region of interest (e.g., `30216700`). |
-| `-e` | **End coordinate**. The ending coordinate of the region of interest (e.g., `30216750`). |
+**Options**
 
-### 6. BulkMonSTR prediction
+* `--sample, -sp` : Sample name
+* `--reference-genome, -r` : Reference genome FASTA
+* `--vcf, -v` : The VCF file generated from genotyping step
+* `--stutter-model, -sm` : The stutter model generated from stutter model estimation step
+* `--cell-barcode, -cb` : The TSV file containing two columns: `cell barcode` and `cell type`, where each row assigns a predicted or annotated cell type to a specific cell barcode.
+* `--pop-info, -pi` : The population information file generated from population information extraction step
+* `--recurrent-info, -ri` : The recurrent mosaic information file generated from population information extraction step
+* `--mappability, -mp` : The BED file containing mappability information (K24 and K100) for regions in the reference genome. You can directly use `demo/resource/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz`.
+* `--metadata, -i` :  The metadata CSV file used for genotyping can be reused.
+* `--chrom, -c` : Chromosome (default: empty)
+* `--start, -s` : Genomic start position (default: `0`)
+* `--end, -e` : Genomic end position (default: `1000000000`)
+* `--filters-json, -fj` : Json file for filtering thresholds. Default path is `src/filters.json`. In the provided JSON file, there are explanations for each filter, based on which you can modify the threshold of the filters.
+* `--mutation-type, -mt` : Expected type of mutation. Select from cell specific, share and both (default: `both`).
+* `--output-dir, -o` : Output directory (default: `./04filter`)
+
 ---
-The final set of predicted mosaic STR mutations is obtained by applying a **random forest model** and a series of **hard filters** in BulkMonSTR.
-```sh
-python3 ~/BulkMonSTR/src/bulkmonstr_prediction.py \
--i ~/BulkMonSTR/demo/extract_features_test/extract_features_output/feature_extract_results/feature_output_1_Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter_sorted_chr1_30216700_30216750_feature_output.csv \
--o ~/BulkMonSTR/demo/BulkMonSTR_prediction_test/bulkmonstr_prediction_output/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1.txt \
--l both \
--mm ~/BulkMonSTR/model/final_best_random_forest_model_mis_all.pkl \
--mid ~/BulkMonSTR/model/final_best_random_forest_model_indel_all.pkl \
--r your_reference_genome_FASTA_file \
--m both
-```
-- **Parameters**:
-
-| Parameter | Description |
-|-----------|-------------|
-| `-i` | **Input CSV file** generated by `extract_features.py`, containing extracted features for candidate STR loci. |
-| `-o` | **Output CSV file** to store the final predicted mosaic STR mutations and features output files. |
-| `-l` | **Feature type**: specify which feature set(s) to use for prediction.<br>Options:<br>• `indel`: use only indel-based features<br>• `mismatch`: use only mismatch-based features<br>• `both`: use both feature types (default) |
-| `-mm` | **Mismatch model path**: path to the trained random forest model for mismatch-based features. |
-| `-mid` | **Indel model path**: path to the trained random forest model for indel-based features. |
-| `-r` | **Reference genome** in FASTA format, used to extract sequence context. Must be indexed with `.fai` file. |
-| `-m` | **Prediction mode**: determines how random forest and hard filter results are used:<br>• `rf`: use only the random forest model for prediction<br>• `hard_filter`: use only hard filtering rules<br>• `both`: require both rf and hard filter to call a site mosaic (default)<br>• `either`: call mosaic if either rf or hard filter predicts mosaic |
-| `-hnf` | **No filter heterozygous**: Compatible with potential clonal mosaic mutations with VAF ≈ 0.5. |
-
-- You can customize the hard filter criteria in ~/BulkMonSTR/src/final_hard_filter_config_params.py. Currently, we use a conservative default hard filter condition to maintain sensitivity.
-
-- BulkMonSTR uses four models trained on different datasets to predict mosaic STR mutations:
-
-| Model Type        | Training Data         | File |
-|-------------------|-----------------------|----------|
-| **Mismatch (300x)** | Trained on 300x depth samples | final_best_random_forest_model_mis_300.pkl
-| **Indel (300x)**    | Trained on 300x depth samples | final_best_random_forest_model_indel_300.pkl
-| **Mismatch (All Depth)**  | Trained on all available depth(30-300x) | final_best_random_forest_model_mis_all.pkl
-| **Indel (All Depth)**     | Trained on all available depth(30-300x) | final_best_random_forest_model_indel_all.pkl
-
-- **Output Files**
-
-The output files include feature CSV files used in the random forest prediction as well as the final predicted mosaic mutations output.
-
-Key Columns from Final Predicted Mosaic Mutations Output:
-
-| Key Columns           | Description |
-|-----------------------|-------------|
-| `Mosaic mutations`          | The confidence score for the random forest prediction, indicating the model's certainty in its prediction for mosaics. |
-| `obs_hap_count`        | The read-base haplotype phasing, hap = 3 has a higher likelihood of indicating a mosaic mutation. |
-| `mle_hap_count`        | The read-base haplotype phasing based on maximum likelihood assignment, hap = 3 has a higher likelihood of indicating a mosaic mutation.  |
-| `muttype`              | The type of mutation observed at the STR locus: `Hom2Het` (homozygous to heterozygous) or `Het2Het` (heterozygous to heterozygous). `Het2Het` predictions are less reliable and may be more prone to false positives. |
-| `hard_filter_details` | A detailed filtering criteria applied to the STR locus, including any thresholds used for filtering and whether the locus passed or failed the hard filtering criteria. |
-| `hard_filter_decision` | The decision made by the hard filter, indicating whether the STR locus passed or failed the filtering criteria. |
-| `RF_Prediction`       | The prediction made by the random forest model: `Mosaic mutations` or `Artifacts` or `Germline Het`. |
-| `Final Decision`      | The final prediction based on both random forest and hard filter decisions: `Mosaic` or `Heterzygous or Artifacts`. |
-
-
-## Run in batch scripts
-# TODO
-
-
-## Pipeline optimized for clonal samples
-# TODO
-
-
-## Q&A
-For more details, check the [documentation](https://github.com/your-repo/BulkMonSTR)  (TODO List). 
-If you encounter problems, please open a [github issue](https://github.com/Lidweixiang/BulkMonSTR/issues).
-
 
 ## Citation
-If you use BulkMonSTR in your research, please cite our paper:
 
-> [Authors], *BulkMonSTR: Detecting Mosaic STR Mutations from Bulk Sequencing*, Journal, 2025.
+If you use **BayesMonSTR-ATAC** in your research, please cite the corresponding manuscript (to be added).
 
+---
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+## Contact
+
+For questions or issues, please open an issue or contact wangchunyi@westlake.edu.cn.
 
 ---

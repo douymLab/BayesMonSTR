@@ -1,0 +1,134 @@
+[
+  {
+    "column": "CMP",
+    "instruction": "Posterior probability of being a mosaic mutation, ranging from 0 to 1. Higher value means the locus is more likely to be a true mosaic mutation based on Bayesian inference.",
+    "operator": ">",
+    "threshold": 0.5
+  },
+  {
+    "column": "observed_mosaic_allele_vaf_single_locus",
+    "instruction": "Variant allele frequency (VAF) of the mosaic allele, ranging from 0 to 1. Higher value may suggest germline or technical artifacts.",
+    "operator": "<=",
+    "threshold": 0.5
+  },
+  {
+    "column": "observed_mosaic_allele_vaf_single_locus",
+    "instruction": "Variant allele frequency (VAF), ranging from 0 to 1. Values which are too low may suggest sequencing error or noise. But in snATAC-seq, a mutation with low VAF can still be regared as candidate true locus.",
+    "operator": ">",
+    "threshold": 1e-8
+  },
+  {
+    "column": "mutant_dp",
+    "instruction": "Depth of reads supporting the mutant allele, integer ≥ 0. Higher value increases confidence in the presence of the mosaic variant.",
+    "operator": ">",
+    "threshold": 0
+  },
+  {
+    "column": "depth",
+    "instruction": "Total sequencing depth at the locus, integer ≥ 0. Higher depth improves detection reliability and genotyping accuracy.",
+    "operator": ">=",
+    "threshold": 5
+  },
+  {
+    "column": "MBP_abs",
+    "instruction": "Absolute mutant length of STR insertion or deletion, integer ≥ 0.",
+    "operator": "<=",
+    "threshold": 50
+  },
+  {
+    "column": "mosaic_popAF",
+    "instruction": "Estimated population allele frequency for mosaic events, ranging from 0 to 1. Lower values indicate rarer variants, consistent with somatic mosaicism; high values may suggest common polymorphisms.",
+    "operator": "<=",
+    "threshold": 0.3
+  },
+  {
+    "column": "recurrent_fraction",
+    "instruction": "Fraction of samples or cells where the same mutation recurs across individuals or loci, ranging from 0 to 1. Lower values reduce risk of batch effects or hypermutable site bias.",
+    "operator": "<=",
+    "threshold": 0.3
+  },
+  {
+    "column": "uncallable_frac",
+    "instruction": "Proportion of uncallable reads in the locus, ranging from 0 to 1. High values suggest unreliable read mapping or other systematical artifacts.",
+    "operator": "<=",
+    "threshold": 0.8
+  },
+  {
+    "column": "muttype2",
+    "instruction": "Mutation type classification: 'homhet' or 'hethom', indicating mutation patterns that are relatively less error-prone, distinguishing from hethet (heterozygosity at the individual level, where completely different alleles appear within a cell).",
+    "operator": "in",
+    "threshold": ["homhet", "hethom"]
+  },
+  {
+    "column": "alleles_mut_type",
+    "instruction": "Type of mutation: SNV (single nucleotide variant), Insertion, or Deletion. These are typical somatic mosaic event types. Complex variants may be excluded for simplicity and accuracy.",
+    "operator": "in",
+    "threshold": ["Insertion", "Deletion", "SNV"]
+  },
+  {
+    "column": "celltype_count_mosaic",
+    "instruction": "Number of cell types in which the mosaic mutation is detected, integer ≥ 0. A value of 1 restricts detection to only one cell type, reducing cross-contamination risks.",
+    "operator": "==",
+    "threshold": 1
+  },
+  {
+    "column": "na_celltype_rc_mosaic",
+    "instruction": "Number of mutant reads with no cell type annotation, integer ≥ 0. Lower is better; zero ensures all mutatnt reads have valid cell type annotation.",
+    "operator": "==",
+    "threshold": 0
+  },
+  {
+    "column": "max_mosaic_barcode_rc",
+    "instruction": "Number of mutant reads in cell with max mutant reads, integer ≥ 0. A value of 1 limits support to at most one unique molecule, reducing PCR duplicate bias.",
+    "operator": "==",
+    "threshold": 1
+  },
+  {
+    "column": "used_read_num_in_genotyping",
+    "instruction": "Number of reads used in genotyping the mosaic variant, integer ≥ 0. Higher values improve genotyping confidence; threshold ensures sufficient data usage.",
+    "operator": ">=",
+    "threshold": 10
+  },
+  {
+    "column": "stutter_ratio",
+    "instruction": "Ratio of off-target stutter artifacts, ranging from 0 to 1. Lower values indicate cleaner signal; high stutter increases false positive risk.",
+    "operator": "<=",
+    "threshold": 0.1
+  },
+  {
+    "column": "mut_mis",
+    "instruction": "Number of mismatching bases in the mutation site, integer ≥ 0. Zero is ideal, indicating high alignment accuracy and low mis-mapping.",
+    "operator": "==",
+    "threshold": 0
+  },
+  {
+    "column": "mut_mean_baseq",
+    "instruction": "Mean base quality score of the mutant site, typically Phred-scaled from 0 to 40+. Higher values indicate higher confidence in base calling accuracy.",
+    "operator": ">=",
+    "threshold": 35
+  },
+  {
+    "column": "overall_mean_mapQ",
+    "instruction": "Mean mapping quality of all reads at the locus, Phred-scaled from 0 to 60. Higher values indicate more uniquely mapped reads and lower multi-mapping risk.",
+    "operator": ">=",
+    "threshold": 50
+  },
+  {
+    "column": "mut_mapQ_mean",
+    "instruction": "Mean mapping quality of mutant reads only, Phred-scaled 0 to 60. Higher values increase confidence that mutant reads are correctly mapped.",
+    "operator": ">=",
+    "threshold": 50
+  },
+  {
+    "column": "overall_mean_flanking_sbs_num_per_bp",
+    "instruction": "Average number of flanking sequencing errors (substitutions) per base pair in the region, typically 0 to 0.01. Lower values indicate cleaner genomic context; high values suggest error-prone regions.",
+    "operator": "<=",
+    "threshold": 0.005
+  },
+  {
+    "column": "mut_mean_flanking_sbs_num_per_bp",
+    "instruction": "Same as above but calculated only on mutant-supporting reads. Lower values suggest the mutation is not in a hypermutable or error-prone context.",
+    "operator": "<=",
+    "threshold": 0.005
+  }
+]

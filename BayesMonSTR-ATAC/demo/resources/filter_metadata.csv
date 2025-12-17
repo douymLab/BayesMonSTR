@@ -1,0 +1,4 @@
+Ind,Sample Name,Sex,Tissue,sequencing_type,bam_path,mosdepth_wgs_mean_depth,used_genotyping_str_mean_depth,seq_tech
+demo1,demo1,None,brain,scATAC,./resources/bam/demo1.chr6-43243669-43243695.bam,300,300,illumina
+demo2,demo2,None,brain,scATAC,./resources/bam/demo2.chr6-43243669-43243695.bam,300,300,illumina
+demo3,demo3,None,brain,scATAC,./resources/bam/demo3.chr6-43243669-43243695.bam,300,300,illumina

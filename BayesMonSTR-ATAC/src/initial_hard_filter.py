@@ -1,6 +1,4 @@
 import argparse
-
-# import myutils
 import pysam
 import os
 import config_params
@@ -10,11 +8,7 @@ import subprocess
 import collections
 
 ALLELE_EXTRACT = config_params.ALLELE_EXTRACT
-PADDING_BPS = ALLELE_EXTRACT["PADDING_BPS"]  # 5 # 10 # revise_padding
-# import warnings
-# warnings.filterwarnings("ignore")
-# TODO: DEBUG VCF Format Some Headers Are Missing DONE #
-
+PADDING_BPS = ALLELE_EXTRACT["PADDING_BPS"]
 
 def initial_hard_filter(
     vcf_based_features,
@@ -26,9 +20,6 @@ def initial_hard_filter(
     max_mutation_length,
     het_no_filter,
 ):
-    # five condition leads to GT "." include mosaic fraction estimation fail (LD/MaxIter/MFOutOfRange) and single allele germ and coverage < 5 but GI "." only when no alleles or no reads
-    # mosaic/somatic calling no consider for mosaic fraction estimation fail loci and single allele germ and low coverage loci
-    # so don't consider the GT == ".,."
     if vcf_based_features["GT"] == ".,.":
         return "Fail"
     if het_no_filter:
@@ -653,27 +644,27 @@ def get_features_from_vcf(vcf_record, sample_name):
     return vcf_based_features
 
 
-def process_vcf(
-    vcf_file,
+def run_initial_hard_filter(
+    vcf,
     sample_name,
     output_file,
-    posterior_filter,
-    mutant_dp_filter,
-    lower_vaf_filter,
-    upper_vaf_filter,
-    min_depth_filter,
-    max_mutation_length,
-    pop_gi_filter,
-    recurrent_filter,
-    pop_gi_file,
-    recurrent_filter_file,
-    callable_filter,
-    external_population_panel,
-    bed_filter_out,
-    reference_fasta,
-    het_no_filter,
+    pop_gi_file=None,
+    recurrent_filter_file=None,
+    posterior_filter=0.5,
+    mutant_dp_filter=0,
+    lower_vaf_filter=0.8,
+    upper_vaf_filter=1e-8,
+    min_depth_filter=1,
+    max_mutation_length=50,
+    pop_gi_filter=0.3,
+    recurrent_filter=0.3,
+    callable_filter=0,
+    external_population_panel=None,
+    bed_filter_out=None,
+    reference_fasta=None,
+    het_no_filter=True,
 ):
-    vcf_in = pysam.VariantFile(vcf_file)
+    vcf_in = pysam.VariantFile(vcf)
     result_features = [
         "chrom",
         "STRSTART",
@@ -769,7 +760,7 @@ def process_vcf(
     ]
     f = open(output_file, "a")
     fail_output_file = (
-        ".".join(args.output_file.split(".")[:-1]) + "_fail.bed"
+        ".".join(output_file.split(".")[:-1]) + "_fail.bed"
     )
     f_fail = open(fail_output_file, "a")
     finish_str_id_list = []
@@ -942,98 +933,38 @@ def process_vcf(
             line += str(vcf_based_features.get(feature, ".")) + "\t"
         line = line.strip()
         line += "\n"
-        # if myutils.acquire_lock(f):
         f.write(line)
-        # myutils.release_lock(f)
-    # print(
-    #     "Finish "
-    #     + vcf_record.chrom
-    #     + ":"
-    #     + str(vcf_record.pos)
-    #     + " "
-    #     + vcf_record.id
-    # )
+
     f.close()
     f_fail.close()
     median_genotyping_dp = np.median(genotyping_dp_list)
-    return median_genotyping_dp
-
-
-if __name__ == "__main__":
-    # 使用 argparse 解析命令行参数
-    parser = argparse.ArgumentParser(
-        description="Extract key information from vcf"
+    
+    sort_output_file = ".".join(output_file.split(".")[:-1]) + "_sorted.bed"
+    input_file = output_file
+    cmd = (
+        f"awk -v val={median_genotyping_dp} 'BEGIN{{OFS=\"\\t\"}} "
+        f"{{print $0, val}}' {input_file} | "
+        f"sort -k1,1 -k2,2n > {sort_output_file}"
     )
+    subprocess.run(cmd, shell=True, check=True, executable="/bin/bash")
+    time.sleep(1)
 
-    import argparse
+    gz_file = f"{sort_output_file}.gz"
+    subprocess.run(["bgzip", "-f", sort_output_file], check=True)
+    time.sleep(1)
 
+    subprocess.run(["tabix", "-p", "bed", gz_file], check=True)
+
+
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Mosaic variant filtering parameters"
     )
 
-    parser.add_argument("-v", "--vcf_file", type=str, help="VCF file path")
+    parser.add_argument("-v", "--vcf", type=str, help="VCF file path")
     parser.add_argument("-s", "--sample_name", type=str, help="Sample name")
     parser.add_argument(
         "-o", "--output_file", type=str, help="Output file path"
-    )
-    parser.add_argument(
-        "-p",
-        "--posterior_filter",
-        default=0.9,
-        type=float,
-        help=(
-            "Posterior probability filter (must be > this value, lower cutoff"
-            " for low-depth samples)"
-        ),
-    )
-    parser.add_argument(
-        "-m",
-        "--mutant_dp_filter",
-        default=3,
-        type=int,
-        help="Mutant depth (DP) filter (must be ≥ this value)",
-    )  # HACK: avoid abnormal value, so should minus 0.1 after
-    parser.add_argument(
-        "-u",
-        "--upper_vaf_filter",
-        default=0.8,
-        type=float,
-        help="Upper VAF filter (must be < this value)",
-    )
-    parser.add_argument(
-        "-l",
-        "--lower_vaf_filter",
-        default=0.01,
-        type=float,
-        help="Lower VAF filter (must be > this value)",
-    )
-    parser.add_argument(
-        "-d",
-        "--min_depth_filter",
-        default=10,
-        type=int,
-        help="Minimum read depth filter (must be ≥ this value)",
-    )
-    parser.add_argument(
-        "-ms",
-        "--max_mutation_length",
-        default=18,
-        type=int,
-        help="Maximum allowed mutation length",
-    )
-    parser.add_argument(
-        "-pgi",
-        "--pop_gi_filter",
-        default=0.3,
-        type=float,
-        help="Population allele frequency filter threshold",
-    )
-    parser.add_argument(
-        "-r",
-        "--recurrent_filter",
-        default=0.1,
-        type=float,
-        help="Recurrent mutation filter threshold",
     )
     parser.add_argument(
         "-bf",
@@ -1048,9 +979,69 @@ if __name__ == "__main__":
         help="Path to recurrent mutation filter file",
     )
     parser.add_argument(
+        "-p",
+        "--posterior_filter",
+        default=0.5,
+        type=float,
+        help=(
+            "Posterior probability filter (must be > this value, lower cutoff"
+            " for low-depth samples)"
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--mutant_dp_filter",
+        default=0,
+        type=int,
+        help="Mutant depth (DP) filter (must be ≥ this value)",
+    )  # HACK: avoid abnormal value, so should minus 0.1 after
+    parser.add_argument(
+        "-u",
+        "--upper_vaf_filter",
+        default=0.8,
+        type=float,
+        help="Upper VAF filter (must be < this value)",
+    )
+    parser.add_argument(
+        "-l",
+        "--lower_vaf_filter",
+        default=1e-8,
+        type=float,
+        help="Lower VAF filter (must be > this value)",
+    )
+    parser.add_argument(
+        "-d",
+        "--min_depth_filter",
+        default=1,
+        type=int,
+        help="Minimum read depth filter (must be ≥ this value)",
+    )
+    parser.add_argument(
+        "-ms",
+        "--max_mutation_length",
+        default=50,
+        type=int,
+        help="Maximum allowed mutation length",
+    )
+    parser.add_argument(
+        "-pgi",
+        "--pop_gi_filter",
+        default=1.1,
+        type=float,
+        help="Population allele frequency filter threshold",
+    )
+    parser.add_argument(
+        "-r",
+        "--recurrent_filter",
+        default=1.1,
+        type=float,
+        help="Recurrent mutation filter threshold",
+    )
+
+    parser.add_argument(
         "-cf",
         "--callable_filter",
-        default=0.2,
+        default=0,
         type=float,
         help="Callable fraction filter threshold",
     )
@@ -1081,10 +1072,13 @@ if __name__ == "__main__":
             " mutations with VAF approximately equal to 0.5"
         ),
     )
-    args = parser.parse_args()
-    # 调用函数提取关键词并输出文件名
-    median_genotyping_dp = process_vcf(
-        args.vcf_file,
+
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    run_initial_hard_filter(
+        args.vcf,
         args.sample_name,
         args.output_file,
         args.posterior_filter,
@@ -1103,21 +1097,6 @@ if __name__ == "__main__":
         args.reference_fasta,
         args.het_no_filter,
     )
-    sort_output_file = (
-        ".".join(args.output_file.split(".")[:-1]) + "_sorted.bed"
-    )
-    time.sleep(1)
-    input_file = args.output_file
-    cmd = f"""awk -v val={median_genotyping_dp} 'BEGIN{{OFS="\\t"}} {{print $0, val}}' {input_file} | sort -k1,1 -k2,2n > {sort_output_file}"""
-    subprocess.run(cmd, shell=True, check=True)
-    time.sleep(1)
-    subprocess.run(f"bgzip -f {sort_output_file}", shell=True, check=True)
-    time.sleep(1)
-    subprocess.run(
-        f"tabix -p bed {sort_output_file}.gz", shell=True, check=True
-    )
 
-# python3 initial_hard_filter.py -v /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/merge_vcf_20241205/mosaic_calling_result_seq_based_GRCh37_2897_header_sorted.vcf.gz -s SRR13989893 -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/extract_features_1485/test_initial_filter.bed -p 0.9 -m 3 -u 0.8 -l 0.01 -d 10 -ms 18 -pgi 0.3 -r 0.3 -bf /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/extract_features_1485/popGT_32inds/phs1485v3_32inds_str_gi_test2.txt.gz -rf /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/extract_features_1485/popGT_32inds/phs1485v3_32inds_str_gi_test2_mosaic_recurrent_info.txt.gz -cf 0.2 -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/filter_loci_regions/GRCh37_alllowmapandsegdupregions_addT2T_liftover_SD_regions_HipSTR_GRCh37_zerobased_leftcloserightopen.bed.gz -re /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta
-# python3 initial_hard_filter.py -v /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/hg002_mosaic_calling/result_hg005_sampling/mosaic_calling_result_seq_based_GRCh38_2887_header_sorted.vcf.gz -s HG005_GRCh38_100x -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/extract_features_1485/hg005_test_initial_filter.bed -p 0.9 -m 3 -u 0.8 -l 0.01 -d 10 -ms 18 -pgi 0.3 -r 0.3 -cf 0.2 -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/filter_loci_regions/GRCh38_alllowmapandsegdupregions_addT2T_liftover_SD_regions_HipSTR_GRCh38_zerobased_leftcloserightopen.bed.gz -re /storage/douyanmeiLab/wangweixiang/data/GIAB/GRCh38_GIABv3_no_alt_analysis_set_maskedGRC_decoys_MAP2K3_KMT2C_KCNJ18.fasta -ep /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/hg002_mosaic_calling/extract_features/features_hg005_sampling/pop_AF_allchr_noXYM_final_sorted.bed.gz
-
-# python3 initial_hard_filter.py -v /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/BulkMonSTR_Code_Test/test/mosaic_genotyping/mosaic_genotyping_result/mosaic_fraction_estimation_results/mosaic_result_hg38_chr1_30216700_30216750_mosaic_calling.sorted.vcf.gz -s Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_1 -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/BulkMonSTR_Code_Test/test/initial_hard_cutoff/Human_STR_21293_chr1_30216713_T_TAC_INS_sorted_initial_hard_filter.bed -p 0.9 -m 3 -u 0.8 -l 0.01 -d 10 -ms 18 -pgi 1 -r 1 -cf 0.2 -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/filter_loci_regions/GRCh38_alllowmapandsegdupregions_addT2T_liftover_SD_regions_HipSTR_GRCh38_zerobased_leftcloserightopen.bed.gz -re /storage/douyanmeiLab/wangweixiang/data/GIAB/GRCh38_GIABv3_no_alt_analysis_set_maskedGRC_decoys_MAP2K3_KMT2C_KCNJ18.fasta -ep /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/hg002_mosaic_calling/extract_features/features_hg005_sampling/pop_AF_allchr_noXYM_final_sorted.bed.gz -bf /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/BulkMonSTR_Code_Test/test/extract_pop_infors/pop_infors_output/pop_infors_output.txt.gz -rf /storage/douyanmeiLab/wangweixiang/data/MosaicSTR2_20240817/mosaic_calling_20241204/BulkMonSTR_Code_Test/test/extract_pop_infors/pop_infors_output/pop_infors_output_mosaic_recurrent_info.txt.gz
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,27 @@
+Ind,Sample Name,Sex,Tissue,sequencing_type,bam_path,mosdepth_wgs_mean_depth,used_genotyping_str_mean_depth,seq_tech
+SRR13873087,SRR13873087,None,brain,scATAC,./resources/stutter_bam/SRR13873087_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873089,SRR13873089,None,brain,scATAC,./resources/stutter_bam/SRR13873089_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873092,SRR13873092,None,brain,scATAC,./resources/stutter_bam/SRR13873092_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873095,SRR13873095,None,brain,scATAC,./resources/stutter_bam/SRR13873095_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873098,SRR13873098,None,brain,scATAC,./resources/stutter_bam/SRR13873098_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873100,SRR13873100,None,brain,scATAC,./resources/stutter_bam/SRR13873100_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873103,SRR13873103,None,brain,scATAC,./resources/stutter_bam/SRR13873103_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873106,SRR13873106,None,brain,scATAC,./resources/stutter_bam/SRR13873106_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873109,SRR13873109,None,brain,scATAC,./resources/stutter_bam/SRR13873109_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873111,SRR13873111,None,brain,scATAC,./resources/stutter_bam/SRR13873111_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873113,SRR13873113,None,brain,scATAC,./resources/stutter_bam/SRR13873113_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873116,SRR13873116,None,brain,scATAC,./resources/stutter_bam/SRR13873116_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873119,SRR13873119,None,brain,scATAC,./resources/stutter_bam/SRR13873119_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873121,SRR13873121,None,brain,scATAC,./resources/stutter_bam/SRR13873121_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873125,SRR13873125,None,brain,scATAC,./resources/stutter_bam/SRR13873125_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873127,SRR13873127,None,brain,scATAC,./resources/stutter_bam/SRR13873127_chr6_43243669_43243695.bam,300,300,illumina
+SRR13873129,SRR13873129,None,brain,scATAC,./resources/stutter_bam/SRR13873129_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893752,SRR8893752,None,blood,scATAC,./resources/stutter_bam/SRR8893752_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893760,SRR8893760,None,blood,scATAC,./resources/stutter_bam/SRR8893760_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893761,SRR8893761,None,blood,scATAC,./resources/stutter_bam/SRR8893761_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893797,SRR8893797,None,blood,scATAC,./resources/stutter_bam/SRR8893797_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893798,SRR8893798,None,blood,scATAC,./resources/stutter_bam/SRR8893798_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893799,SRR8893799,None,blood,scATAC,./resources/stutter_bam/SRR8893799_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893800,SRR8893800,None,blood,scATAC,./resources/stutter_bam/SRR8893800_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893801,SRR8893801,None,blood,scATAC,./resources/stutter_bam/SRR8893801_chr6_43243669_43243695.bam,300,300,illumina
+SRR8893803,SRR8893803,None,blood,scATAC,./resources/stutter_bam/SRR8893803_chr6_43243669_43243695.bam,300,300,illumina

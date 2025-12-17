@@ -7,7 +7,7 @@ import pysam
 # HACK: missing informations shouldn't be added in denominator
 
 
-def process_vcf(vcf_file, output_file):
+def run(vcf_file, output_file):
     vcf_in = pysam.VariantFile(vcf_file)
     gif = open(output_file, "a")
     mof = ".".join(output_file.split(".")[:-1]) + "_mosaic_recurrent_info.txt"
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # 调用函数提取关键词并输出文件名
-    process_vcf(args.vcf_file, args.output_file)
+    run(args.vcf_file, args.output_file)
 
 # python3 extract_mosaicgt_per_loci_all_samples.py -v /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/result_mc_mutation_rate_0613/mosaic_calling_result_seq_based_GRCh37_mosaic_calling_add_mc_2897_add_header_sorted_0613.vcf.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/all_samples_stats/results/mosaic_calling_result_seq_based_GRCh37_mosaic_calling_add_mc_2897_mosaicGT_all_loci_0613_2024.txt
 # python3 09.extract_mosaicgt_per_loci_all_samples.py -v ${vcf_file} -o ${output_file}

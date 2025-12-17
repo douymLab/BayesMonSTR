@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# cd ..
+bayesmonstr-atac genotyping \
+    --metadata ./resources/genotyping_metadata.csv \
+    --reference-genome ./resources/Homo_sapiens_assembly38.fasta \
+    --bed-panel ./resources/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz \
+    --stutter-model ./00stutter/stutter_result_uniq_sorted.bed.gz \
+    --output-dir ./02genotyping \
+    --chrom chr6 \
+    --start 43243669 \
+    --end 43243695 \
+
+cd ./02genotyping/results
+bgzip hg38_chr6_43243669_43243695_mosaic_calling.vcf
+tabix -p vcf hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
+bcftools sort -Oz -o hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
+tabix -p vcf hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz
+
+first_file=true
+> "mosaic_fraction_estimation_results.vcf"
+for file in ./*_mosaic_calling.sorted.vcf.gz; do
+    if [[ ! -f "$file" ]]; then
+        echo "Warning: No result found"
+        continue
+    fi
+    if $first_file; then
+        zcat "$file" >> mosaic_fraction_estimation_results.vcf
+        first_file=false
+    else
+        zcat "$file" | grep -v '^#' >> mosaic_fraction_estimation_results.vcf
+    fi
+done
+bgzip mosaic_fraction_estimation_results.vcf
+tabix -p vcf mosaic_fraction_estimation_results.vcf.gz

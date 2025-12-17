@@ -591,174 +591,6 @@ def get_var_record(pysam_vcf, chrom, start, end, STR_id):
     return all_alleles, var_record
 
 
-# def cal_per_read_log_likelihood_given_allele_seq_based(
-#     allele_seq,
-#     read_seq,
-#     read_accuracy,
-#     log_no_stutter_lik,
-#     motif_length,
-#     inframe_stutter_model_dict,
-#     outframe_stutter_model_dict,
-#     mutation_site_index_based_on_hap_zero_based,
-# ):
-#     # XXX:(-4)%3 = 2
-#     bp_diff = len(read_seq) - len(allele_seq)
-#     indel_size = abs(bp_diff)
-#     if bp_diff == 0.0:
-#         (
-#             log_str_align_prob,
-#             mis_score,
-#             max_alignment_length,
-#         ) = hap_alignment.no_stutter_str_alignment_add_mis_score(
-#             allele_seq,
-#             read_seq,
-#             read_accuracy,
-#             log_no_stutter_lik,
-#         )
-#         type = "mismatch"
-#         max_alignment_index = "NA"
-#     else:
-#         quotient, remainder = divmod(abs(bp_diff), motif_length)
-#         if remainder == 0.0:
-#             steps = int((bp_diff) / motif_length)
-#             if bp_diff > 0:
-#                 (
-#                     log_str_align_prob,
-#                     mis_score,
-#                     max_alignment_length,
-#                     max_alignment_index,
-#                 ) = hap_alignment.stutter_insertion_add_mis_score(
-#                     allele_seq,
-#                     read_seq,
-#                     read_accuracy,
-#                     steps,
-#                     inframe_stutter_model_dict,
-#                 )
-#                 type = "insertion"
-#             else:
-#                 (
-#                     log_str_align_prob,
-#                     mis_score,
-#                     max_alignment_length,
-#                     max_alignment_index,
-#                 ) = hap_alignment.stutter_deletion_add_mis_score(
-#                     allele_seq,
-#                     read_seq,
-#                     read_accuracy,
-#                     steps,
-#                     inframe_stutter_model_dict,
-#                 )
-#                 type = "deletion"
-#             # BUG: unfiltered reads with a big stutter size and exceed the stutter model range
-#             # stutter_error_likelihood = log_stutter_model_dic[steps]
-#             # KeyError: -12
-#         else:
-#             if bp_diff > 0:
-#                 steps = bp_diff - quotient
-#                 (
-#                     log_str_align_prob,
-#                     mis_score,
-#                     max_alignment_length,
-#                     max_alignment_index,
-#                 ) = hap_alignment.stutter_insertion_add_mis_score(
-#                     allele_seq,
-#                     read_seq,
-#                     read_accuracy,
-#                     steps,
-#                     outframe_stutter_model_dict,
-#                 )
-#                 type = "insertion"
-#             else:
-#                 steps = bp_diff + quotient
-#                 (
-#                     log_str_align_prob,
-#                     mis_score,
-#                     max_alignment_length,
-#                     max_alignment_index,
-#                 ) = hap_alignment.stutter_deletion_add_mis_score(
-#                     allele_seq,
-#                     read_seq,
-#                     read_accuracy,
-#                     steps,
-#                     outframe_stutter_model_dict,
-#                 )
-#                 type = "deletion"
-#     if mutation_site_index_based_on_hap_zero_based != "NA":
-#         base_accuracy = find_mis_baseq_site_in_read(
-#             type,
-#             mutation_site_index_based_on_hap_zero_based,
-#             max_alignment_index,
-#             indel_size,
-#             read_accuracy,
-#         )
-#     else:
-#         base_accuracy = "NA"
-#     return log_str_align_prob, mis_score, max_alignment_length, base_accuracy
-
-
-# def find_mis_baseq_site_in_read(
-#     type,
-#     mutation_site_index_based_on_hap_zero_based,
-#     max_alignment_index,
-#     indel_size,
-#     read_accuracy,
-# ):
-#     if type == "mismatch":
-#         if mutation_site_index_based_on_hap_zero_based < len(read_accuracy):
-#             base_accuracy = read_accuracy[
-#                 mutation_site_index_based_on_hap_zero_based
-#             ]
-#         else:
-#             base_accuracy = "NA"
-#     elif type == "insertion":
-#         if max_alignment_index <= mutation_site_index_based_on_hap_zero_based:
-#             if (
-#                 mutation_site_index_based_on_hap_zero_based + indel_size
-#             ) < len(read_accuracy):
-#                 base_accuracy = read_accuracy[
-#                     mutation_site_index_based_on_hap_zero_based + indel_size
-#                 ]
-#             else:
-#                 base_accuracy = "NA"
-#         else:
-#             if mutation_site_index_based_on_hap_zero_based < len(
-#                 read_accuracy
-#             ):
-#                 base_accuracy = read_accuracy[
-#                     mutation_site_index_based_on_hap_zero_based
-#                 ]
-#             else:
-#                 base_accuracy = "NA"
-#     elif type == "deletion":
-#         if (
-#             max_alignment_index
-#             <= mutation_site_index_based_on_hap_zero_based
-#             < (max_alignment_index + indel_size)
-#         ):
-#             base_accuracy = "NA"
-#         elif mutation_site_index_based_on_hap_zero_based < max_alignment_index:
-#             if mutation_site_index_based_on_hap_zero_based < len(
-#                 read_accuracy
-#             ):
-#                 base_accuracy = read_accuracy[
-#                     mutation_site_index_based_on_hap_zero_based
-#                 ]
-#             else:
-#                 base_accuracy = "NA"
-#         elif mutation_site_index_based_on_hap_zero_based >= (
-#             max_alignment_index + indel_size
-#         ):
-#             if (
-#                 mutation_site_index_based_on_hap_zero_based - indel_size
-#             ) < len(read_accuracy):
-#                 base_accuracy = read_accuracy[
-#                     mutation_site_index_based_on_hap_zero_based - indel_size
-#                 ]
-#             else:
-#                 base_accuracy = "NA"
-#     return base_accuracy
-
-
 def get_mappability_record(bw, chrom, start, end):
     # Extract signal data for the specified region
     # print(chrom)
@@ -6155,246 +5987,6 @@ def write_features_to_csv(
     return line
 
 
-def cmd_args(args=sys.argv[1:]):
-    """Get the command line arguments
-
-    Args:
-        args (list, optional): A list with arguments name and value in order.
-        Defaults to sys.argv[1:].
-
-    Returns:
-        argparse.Namespace object: A namespace object with the command line
-        arguments as attributes.
-    """
-    parser = argparse.ArgumentParser(
-        description=(
-            textwrap.dedent(
-                """
-------------------------------------------------------------------------------
-FeatureExtract: Extract Features From BAM FILEs
-------------------------------------------------------------------------------
-"""
-            )
-        ),
-        epilog=(
-            textwrap.dedent(
-                """
-------------------------------------------------------------------------------
-Any bugs can be reported to
-Github:"https://github.com/Lidweixiang/MosaicSTR" or
-E-Mail: "18829352615@163.com"'
-------------------------------------------------------------------------------
-"""
-            )
-        ),
-        prog="extract_features",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        usage="%(prog)s [options] ",
-        allow_abbrev=True,
-        add_help=False,
-        conflict_handler="error",
-    )
-    # * Help option is default if add_help is True
-    help_args = parser.add_argument_group("Help arguments")
-    help_args.add_argument(
-        "-h", "--help", action="help", help="Show this help message and exit"
-    )
-    # Add the command-line arguments Required arguments
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument(
-        "-i",
-        "--metadata",
-        required=True,
-        help=(
-            "Metadata(CSV file) including ind, sex, tissue, sequencing_type,"
-            " bam_path and, others columns"
-        ),
-    )
-    required_args.add_argument(
-        "-r",
-        "--reference_genome",
-        required=True,
-        help="Reference genome(FASTA file)",
-    )
-    # required_args.add_argument(
-    #     "-b",
-    #     "--bed_panel",
-    #     action="append",
-    #     nargs="+",
-    #     required=True,
-    #     help="STR genome annotation(BED file)",
-    # )
-    required_args.add_argument(
-        "-b",
-        "--bed_panel",
-        required=True,
-        help="STR genome annotation(BED file)",
-    )
-    required_args.add_argument(
-        "-o",
-        "--output_dir",
-        required=True,
-        # help="STR mutation calling output(Bgzipped VCF file)",
-        help="STR mutation calling output path",
-    )
-    required_args.add_argument(
-        "-j",
-        "--config_json",
-        required=False,
-        default=os.path.join(
-            os.path.dirname(__file__), "configs", "config.json"
-        ),
-        help=(
-            "Configuration(JSON file) for more details parameters enactment"
-            " (A developer options)"
-        ),
-    )
-    required_args.add_argument(
-        "-m",
-        "--mode",
-        choices=["RNA-seq", "WGS", "WES"],
-        default="RNA-seq",
-        help="Sequencing type of analyzed data",
-    )
-    required_args.add_argument(
-        "-u",
-        "--stutter_model",
-        choices=["Common", "1KG", "GTEx", "EM"],
-        default="EM",
-        help="Stutter model for STR mutation calling",
-    )
-    required_args.add_argument(
-        "-vi",
-        "--variant_info",
-        help="Variant information(Bgzipped VCF file) from mosaic calling",
-    )
-    required_args.add_argument(
-        "-fo",
-        "--feature_out",
-        help="Output feature file",
-    )
-    # Optional input arguments
-    optional_input_args = parser.add_argument_group("Optional input arguments")
-    optional_input_args.add_argument(
-        "-ma",
-        "--mappability_annotation",
-        help="Mappability annotation(Wig File)",
-    )
-    optional_input_args.add_argument(
-        "-g",
-        "-gene_model",
-        help=(
-            "Gene model(GTF/GFF file) for gene-based read backed phasing "
-            "using allele imbalance/dropout information from amplification "
-            "bias or allelic specific expression"
-        ),
-    )
-    optional_input_args.add_argument(
-        "-si",
-        "--stutter_model_in",
-        help=(
-            "Use stutter models from big cohorts (Current available: 1KG"
-            " HipSTR model and GTEx HipSTR model, Estimate via EM algorithm"
-            " for datasets specific stutter model is better option)"
-        ),
-    )
-    optional_input_args.add_argument(
-        "-p",
-        "--phasing",
-        help=(
-            "Phased SNP information(Bgzipped VCF file) from germline variants"
-            " genotyping and phasing"
-        ),
-    )
-    optional_input_args.add_argument(
-        "-a",
-        "--allele_imbalance",
-        help=(
-            "Allele imbalance information from Gaussian process regression"
-            " (GPR) model"
-        ),
-    )
-    # Optional output arguments
-    optional_output_args = parser.add_argument_group(
-        "Optional output arguments"
-    )
-    # optional_output_args.add_argument(
-    #     "-l", "--log", action="extend", nargs="*", help="Log files"
-    # )
-    optional_output_args.add_argument("-l", "--log", help="Log files")
-    optional_output_args.add_argument(
-        "-ll",
-        "--loglevel",
-        help="Sets the threshold for this logger to level.",
-        default="INFO",
-        type=str,
-        choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    )
-    optional_output_args.add_argument(
-        "-lf",
-        "--log_to_file",
-        action="store_true",
-        help="Output log to file",
-    )
-    optional_output_args.add_argument(
-        "-q",
-        "--stutter_model_out",
-        help="Output stutter model from EM-algorithm",
-    )
-    optional_output_args.add_argument(
-        "-f",
-        "--vcf_out",
-        help="Output vcf files of mosaic calling",
-    )
-    optional_output_args.add_argument(
-        "-z",
-        "--viz_out",
-        help=(
-            "Output pileup-like visualization image of candidate STR mutations"
-        ),
-    )
-    # Other optional arguments
-    other_optional_args = parser.add_argument_group("Other optional arguments")
-    other_optional_args.add_argument(
-        "-c", "--chrom", type=str, default="", help="Selected chromosome"
-    )
-    other_optional_args.add_argument(
-        "-s", "--start", type=int, default=0, help="Selected start"
-    )
-    other_optional_args.add_argument(
-        "-e", "--end", type=int, default=1000000000, help="Selected end"
-    )
-    other_optional_args.add_argument(
-        "-t",
-        "--threads",
-        type=int,
-        default=1,
-        help="Number of threads to use, set to -1 when using all threads)",
-    )
-    other_optional_args.add_argument(
-        "-v",
-        "--verbose",
-        action="count",
-        default=0,
-        help="verbose-level of log",
-    )
-    other_optional_args.add_argument(
-        "-d",
-        "--debug",
-        action="store_true",
-        help="Enable debug mode",
-    )
-    other_optional_args.add_argument(
-        "-n",
-        "--versions",
-        action="version",
-        version="%(prog)s" + " version '" + __VERSION__ + "'",
-    )
-    # Parse the command-line arguments
-    options = parser.parse_args(args)
-    return options
-
-
 def task_generator(pysam_bed, per_locus_parse_params):
     for arg in pysam_bed.fetch():
         yield (per_locus_parse_params, arg)
@@ -6429,31 +6021,20 @@ def features_extract_prepare(parsed_options):
     # logging.info('Command: %s', python_command)
     genome_wide_info_dict["ref_fa"] = parsed_options.reference_genome
     metadata = pd.read_csv(parsed_options.metadata, sep=",", index_col=0)
+    if parsed_options.sample_name is not None:
+        metadata = metadata[metadata['Sample Name']==parsed_options.sample_name]
     bam_files = metadata.iloc[:, 4]
     wgs_mean_depth = metadata.iloc[:, 5]
     str_used_mean_depth = metadata.iloc[:, 6]
     features_extract_all_params["bam_files"] = bam_files
     features_extract_all_params["wgs_mean_depth"] = wgs_mean_depth
     features_extract_all_params["str_used_mean_depth"] = str_used_mean_depth
-    features_extract_all_params[
-        "results_vcf_file"
-    ] = parsed_options.variant_info
-    if GIAB:
-        # sample_name_list = ["Human_STR_1502620_chr9_99809982_TACATAT_T_DEL_sorted"]
-        # sample_name_list = ["Human_STR_1502704_chr9_99953033_A_G_MIS_sorted"]
-        # sample_name_list = ["HG002_GRCh38_300x"] illumina
-        # sample_name_list = [
-        #     "Element_merge_250x_short_and_long_bawmem_sorted"
-        # ]  # element
-        sample_name_list = ["_".join(bam.split("/")[-1].split(".")[:-1]) for bam in bam_files]
-    else:
-        sample_name_list = [
-            bam.split("/")[-1].split(".")[0] for bam in bam_files
-        ]
+    features_extract_all_params["results_vcf_file"] = parsed_options.variant_info
+    sample_name_list = metadata['Sample Name'].to_list()
     features_extract_all_params["bam_name"] = sample_name_list
     genome_wide_info_dict["sample_name_list"] = sample_name_list
-    log_dir = parsed_options.output_dir + "/feature_extract_log"
-    result_dir = parsed_options.output_dir + "/feature_extract_results"
+    log_dir = parsed_options.output_dir
+    result_dir = parsed_options.output_dir
     os.system("mkdir -p " + parsed_options.output_dir)
     os.system("mkdir -p " + log_dir)
     os.system("mkdir -p " + result_dir)
@@ -6461,25 +6042,21 @@ def features_extract_prepare(parsed_options):
     if parsed_options.chrom:
         uid = f"{parsed_options.chrom}_{parsed_options.start}_{parsed_options.end}"
     else:
-        uid = bed_name
+        uid = parsed_options.sample_name
     fail_file = (
         log_dir
         + "/"
-        + parsed_options.log
-        + "_"
         + uid
         + "_features_extract_fail_loci.log"
     )
     features_extract_all_params["output_features_file"] = (
         result_dir
         + "/"
-        + parsed_options.feature_out
-        + "_"
         + uid
-        + "_feature_output.csv"
+        + ".csv"
     )
     features_extract_all_params["fail_file"] = fail_file
-    logfile = log_dir + "/" + parsed_options.log + "_" + uid + ".log"
+    logfile = log_dir + "/" + uid + ".log"
     features_extract_all_params["log_file"] = logfile
     features_extract_all_params[
         "stutter_file"
@@ -6581,225 +6158,238 @@ def features_extract_prepare(parsed_options):
     return genome_wide_info_dict, features_extract_all_params
 
 
-if SINGLETHREAD:
-    # single process for debug
-    def main():
-        python_command = " ".join([sys.executable] + sys.argv)
-        parse_params = cmd_args(args=sys.argv[1:])
-        (
-            genome_wide_info_dict,
-            features_extract_all_params,
-        ) = features_extract_prepare(parse_params)
-        genome_wide_info_dict["commands"] = python_command
-        STR_refpanel_bed = pysam.TabixFile(parse_params.bed_panel)
-        start_time = time.time()
-        logger_features_extract = logger_config.feature_extract_logger(
-            features_extract_all_params["loglevel"],
-            features_extract_all_params["log_to_file"],
-            features_extract_all_params["log_file"],
-        )
-        logger_features_extract.info(
-            "Start time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-        )
-        logger_features_extract.info("Parameters: %s", parse_params)
-        logger_features_extract.info("Command: %s", python_command)
-        MAX_THREADS = (
-            # Adjust this value based on your system's capabilities
-            parse_params.threads
-        )
+def run_extract_features(
+    metadata,
+    reference_genome,
+    bed_panel,
+    output_dir,
+    # Optional inputs
+    sample_name=None,
+    mode="RNA-seq",
+    stutter_model="EM",
+    variant_info=None,
+    output_prefix=None,
+    mappability_annotation=None,
+    gene_model=None,
+    stutter_model_in=None,
+    phasing=None,
+    allele_imbalance=None,
+    # Optional outputs
+    loglevel="INFO",
+    log_to_file=True,
+    stutter_model_out=None,
+    vcf_out=None,
+    viz_out=None,
+    # Other options
+    chrom="",
+    start=0,
+    end=1000000000,
+    threads=1,
+    verbose=0,
+    debug=False,
+    # 控制是否单线程（调试用）
+    single_thread=False,
+):
+    # 构造 Namespace 对象，模拟 argparse 解析结果
+    args = argparse.Namespace(
+        metadata=metadata,
+        reference_genome=reference_genome,
+        bed_panel=bed_panel,
+        output_dir=output_dir,
+        sample_name=sample_name,
+        mode=mode,
+        stutter_model=stutter_model,
+        variant_info=variant_info,
+        output_prefix=output_prefix,
+        mappability_annotation=mappability_annotation,
+        gene_model=gene_model,
+        stutter_model_in=stutter_model_in,
+        phasing=phasing,
+        allele_imbalance=allele_imbalance,
+        loglevel=loglevel,
+        log_to_file=log_to_file,
+        stutter_model_out=stutter_model_out,
+        vcf_out=vcf_out,
+        viz_out=viz_out,
+        chrom=chrom,
+        start=start,
+        end=end,
+        threads=threads if threads > 0 else os.cpu_count(),
+        verbose=verbose,
+        debug=debug,
+    )
 
-        if parse_params.chrom == "":
-            for task in task_generator(
-                STR_refpanel_bed,
-                features_extract_all_params,
-            ):
-                main_per_locus_feature_extract(task[0], task[1])
-                # logger_features_extract.info("Finish " + task[1])  # HACK: hidden dirty log
-        else:
-            for task in task_generator_given_region(
-                STR_refpanel_bed,
-                features_extract_all_params,
-                parse_params.chrom,
-                parse_params.start,
-                parse_params.end,
-            ):
-                main_per_locus_feature_extract(task[0], task[1])
-                # logger_features_extract.info("Finish " + task[1])  # HACK: hidden dirty log
-        logger_features_extract.info(
-            "Finish all STR loci features extraction."
-        )
-        end_time = time.time()
-        logger_features_extract.info(
-            "End time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)),
-        )
-        total_time = end_time - start_time
-        logger_features_extract.info(
-            "Total time spent: %.2f seconds", total_time
-        )
 
-else:
-    # test multipleprocesses
-    def main():
-        python_command = " ".join([sys.executable] + sys.argv)
-        parse_params = cmd_args(args=sys.argv[1:])
-        (
-            genome_wide_info_dict,
-            features_extract_all_params,
-        ) = features_extract_prepare(parse_params)
-        STR_refpanel_bed = pysam.TabixFile(parse_params.bed_panel)
-        genome_wide_info_dict["commands"] = python_command
-        start_time = time.time()
-        logger_features_extract = logger_config.feature_extract_logger(
-            features_extract_all_params["loglevel"],
-            features_extract_all_params["log_to_file"],
-            features_extract_all_params["log_file"],
-        )
-        logger_features_extract.info(
-            "Start time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)),
-        )
-        logger_features_extract.info("Parameters: %s", parse_params)
-        logger_features_extract.info("Command: %s", python_command)
-        MAX_THREADS = (
-            # Adjust this value based on your system's capabilities
-            parse_params.threads
-        )
+    # 模拟 Python 命令（用于日志记录）
+    python_command = f"python -m extract_features [function call]"
 
-        if parse_params.chrom == "":
-            total_tasks_count = len(list(STR_refpanel_bed.fetch()))
-            # features_extract_all_params["STR_refpanel_bed"] = pysam.TabixFile(
-            #     parse_params.bed_panel
-            # )
-            # for task in task_generator(
-            #                 stutter_estimate_prep.STR_refpanel_bed,
-            #                 per_locus_parse_params,
-            #             ):
-            #     main_per_locus_estimation(task[0], task[1])
-            # 除非给定了 fetch 的坐标，否则调用了 fetch() 以后，再重新调用 fetch 后，fetch 的起始位置是上一次 fetch 的结束位置
-            with Manager() as manager:
-                pbar = manager.list([0])  # 使用Manager创建一个可共享的列表用于跟踪进度
-                #     total = 1700000  # 总任务数
 
-                def update_progress_bar(_):
-                    # 更新进度条的回调函数
-                    pbar[0] += 1
-                    progress_bar.update(1)
+    # 调用 prepare 函数（假设已定义）
+    genome_wide_info_dict, features_extract_all_params = features_extract_prepare(args)
+    genome_wide_info_dict["commands"] = python_command
 
-                with Pool(processes=MAX_THREADS) as p:
-                    progress_bar = tqdm(total=total_tasks_count)
-                    try:
-                        for task in task_generator(
-                            STR_refpanel_bed,
-                            features_extract_all_params,
-                        ):
-                            p.apply_async(
+
+    # 打开 BED 注释文件（需 tabix 索引）
+    STR_refpanel_bed = pysam.TabixFile(args.bed_panel)
+
+
+    # 设置日志
+    logger_features_extract = logger_config.feature_extract_logger(
+        features_extract_all_params["loglevel"],
+        features_extract_all_params["log_to_file"],
+        features_extract_all_params["log_file"],
+    )
+
+
+    start_time = time.time()
+    logger_features_extract.info("Start time: %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time)))
+    logger_features_extract.info("Parameters: %s", args)
+    logger_features_extract.info("Command: %s", python_command)
+
+
+    MAX_THREADS = args.threads
+
+
+    try:
+        if args.chrom == "":
+            total_tasks = sum(1 for _ in STR_refpanel_bed.fetch())
+            STR_refpanel_bed = pysam.TabixFile(args.bed_panel)  # 重新打开以重置迭代器
+
+
+            if single_thread or MAX_THREADS == 1:
+                for task in task_generator(STR_refpanel_bed, features_extract_all_params):
+                    main_per_locus_feature_extract(task[0], task[1])
+            else:
+                with Manager() as manager:
+                    with Pool(processes=MAX_THREADS) as pool:
+                        progress_bar = tqdm(total=total_tasks)
+                        def update_progress(_):
+                            progress_bar.update(1)
+
+
+                        for task in task_generator(STR_refpanel_bed, features_extract_all_params):
+                            pool.apply_async(
                                 main_per_locus_feature_extract,
                                 args=task,
-                                callback=update_progress_bar,
+                                callback=update_progress,
+                                error_callback=lambda e: logger_features_extract.error(str(e))
                             )
-                            # logger_features_extract.info("Finish " + task[1])  # HACK: hidden dirty log
-
-                        p.close()
-                        p.join()
-                        progress_bar.close()  # 确保在所有任务完成后关闭进度条
-                    except Exception as e:
-                        traceback.print_exc()
-            # with concurrent.futures.ProcessPoolExecutor(
-            #     max_workers=MAX_THREADS
-            # ) as executor:
-            #     futures = [executor.submit(main_per_locus_estimation,stutter_estimate_prep ,arg) for arg in stutter_estimate_prep.STR_refpanel_bed.fetch()]
-            #     for future in concurrent.futures.as_completed(futures):
-            #         pass
-            # results = [future.result() for future in futures]
-            # list(executor.map(main_per_locus_estimation,
-            #                   stutter_estimate_prep.STR_refpanel_bed.fetch()))
+                        pool.close()
+                        pool.join()
+                        progress_bar.close()
         else:
-            # for task in task_generator_given_region(
-            #                 stutter_estimate_prep.STR_refpanel_bed,
-            #                 per_locus_parse_params,
-            #                 parse_params.chrom,
-            #                 parse_params.start,
-            #                 parse_params.end,
-            #             ):
-            #     main_per_locus_estimation(task[0], task[1])
-            total_tasks_count = len(
-                list(
-                    STR_refpanel_bed.fetch(
-                        parse_params.chrom,
-                        parse_params.start,
-                        parse_params.end,
-                    )
-                )
-            )
-            # features_extract_all_params["STR_refpanel_bed"] = pysam.TabixFile(
-            #     parse_params.bed_panel
-            # )
-            with Manager() as manager:
-                pbar = manager.list([0])  # 使用Manager创建一个可共享的列表用于跟踪进度
-                #     total = 1700000  # 总任务数
+            total_tasks = sum(1 for _ in STR_refpanel_bed.fetch(args.chrom, args.start, args.end))
+            STR_refpanel_bed = pysam.TabixFile(args.bed_panel)  # 重置
 
-                def update_progress_bar(_):
-                    # 更新进度条的回调函数
-                    pbar[0] += 1
-                    progress_bar.update(1)
 
-                with Pool(processes=MAX_THREADS) as p:
-                    progress_bar = tqdm(total=total_tasks_count)
-                    try:
+            if single_thread or MAX_THREADS == 1:
+                for task in task_generator_given_region(
+                    STR_refpanel_bed,
+                    features_extract_all_params,
+                    args.chrom,
+                    args.start,
+                    args.end
+                ):
+                    main_per_locus_feature_extract(task[0], task[1])
+            else:
+                with Manager() as manager:
+                    with Pool(processes=MAX_THREADS) as pool:
+                        progress_bar = tqdm(total=total_tasks)
+                        def update_progress(_):
+                            progress_bar.update(1)
+
+
                         for task in task_generator_given_region(
                             STR_refpanel_bed,
                             features_extract_all_params,
-                            parse_params.chrom,
-                            parse_params.start,
-                            parse_params.end,
+                            args.chrom,
+                            args.start,
+                            args.end
                         ):
-                            p.apply_async(
+                            pool.apply_async(
                                 main_per_locus_feature_extract,
                                 args=task,
-                                callback=update_progress_bar,
+                                callback=update_progress,
+                                error_callback=lambda e: logger_features_extract.error(str(e))
                             )
-                            # logger_features_extract.info("Finish " + task[1])  # HACK: hidden dirty log
+                        pool.close()
+                        pool.join()
+                        progress_bar.close()
 
-                        p.close()
-                        p.join()
-                        progress_bar.close()  # 确保在所有任务完成后关闭进度条
-                    except Exception as e:
-                        traceback.print_exc()
-            # with concurrent.futures.ProcessPoolExecutor(
-            #     max_workers=MAX_THREADS
-            # ) as executor:
-            #     futures = [executor.submit(main_per_locus_estimation,stutter_estimate_prep ,arg) for arg in stutter_estimate_prep.STR_refpanel_bed.fetch(stutter_estimate_prep.parse_params.chrom, stutter_estimate_prep.parse_params.start, stutter_estimate_prep.parse_params.end)]
-            #     for future in concurrent.futures.as_completed(futures):
-            #         pass
-            # list(
-            #     executor.map(
-            #         main_per_locus_estimation,
-            #         stutter_estimate_prep.STR_refpanel_bed.fetch(stutter_estimate_prep.parse_params.chrom, stutter_estimate_prep.parse_params.start, stutter_estimate_prep.parse_params.end),
-            #     )
-            # )
-        logger_features_extract.info(
-            "Finish all STR loci features extraction."
-        )
+
+        logger_features_extract.info("Finish all STR loci features extraction.")
+    except Exception as e:
+        logger_features_extract.error("Error during feature extraction: %s", str(e))
+        traceback.print_exc()
+        raise
+    finally:
         end_time = time.time()
-        logger_features_extract.info(
-            "End time: %s",
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)),
-        )
+        logger_features_extract.info("End time: %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time)))
         total_time = end_time - start_time
-        logger_features_extract.info(
-            "Total time spent: %.2f seconds", total_time
-        )
-        # stutter_estimate_prep.logger_stutter.info(
-        #     "End time: %s",
-        #     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
-        # )
+        logger_features_extract.info("Total time spent: %.2f seconds", total_time)
+        STR_refpanel_bed.close()
+
+
+def cmd_args(args=sys.argv[1:]):
+    parser = argparse.ArgumentParser(
+        description="FeatureExtract: Extract Features From BAM FILEs",
+        prog="extract_features",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        usage="%(prog)s [options]",
+        allow_abbrev=True,
+        add_help=False,
+        conflict_handler="error",
+    )
+    help_args = parser.add_argument_group("Help arguments")
+    help_args.add_argument("-h", "--help", action="help", help="Show this help message and exit")
+
+
+    required_args = parser.add_argument_group("Required arguments")
+    required_args.add_argument("-i", "--metadata", required=True, help="Metadata (CSV file)")
+    required_args.add_argument("-r", "--reference_genome", required=True, help="Reference genome (FASTA file)")
+    required_args.add_argument("-b", "--bed_panel", required=True, help="STR genome annotation (BED file)")
+    required_args.add_argument("-o", "--output_dir", required=True, help="Output path")
+    required_args.add_argument("-m", "--mode", choices=["RNA-seq", "WGS", "WES"], default="RNA-seq", help="Sequencing type")
+    required_args.add_argument("-u", "--stutter_model", choices=["Common", "1KG", "GTEx", "EM"], default="EM", help="Stutter model")
+    required_args.add_argument("-vi", "--variant_info", help="Variant info (VCF)")
+    required_args.add_argument("-op", "--output_prefix", help="Prefix of output feature file")
+
+
+    optional_input_args = parser.add_argument_group("Optional input arguments")
+    parser.add_argument("-s", "--sample_name", type=str, help="Sample name")
+    optional_input_args.add_argument("-ma", "--mappability_annotation", help="Mappability (Wig)")
+    optional_input_args.add_argument("-g", "-gene_model", help="Gene model (GTF/GFF)")
+    optional_input_args.add_argument("-si", "--stutter_model_in", help="Input stutter model")
+    optional_input_args.add_argument("-p", "--phasing", help="Phased SNP VCF")
+    optional_input_args.add_argument("-a", "--allele_imbalance", help="Allele imbalance info")
+
+
+    optional_output_args = parser.add_argument_group("Optional output arguments")
+    optional_output_args.add_argument("-ll", "--loglevel", default="INFO", choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    optional_output_args.add_argument("-lf", "--log_to_file", action="store_true", help="Output log to file")
+    optional_output_args.add_argument("-q", "--stutter_model_out", help="Output stutter model")
+    optional_output_args.add_argument("-f", "--vcf_out", help="Output VCF")
+    optional_output_args.add_argument("-z", "--viz_out", help="Visualization output")
+
+
+    other_optional_args = parser.add_argument_group("Other optional arguments")
+    other_optional_args.add_argument("-c", "--chrom", type=str, default="", help="Selected chromosome")
+    other_optional_args.add_argument("-s", "--start", type=int, default=0, help="Start position")
+    other_optional_args.add_argument("-e", "--end", type=int, default=1000000000, help="End position")
+    other_optional_args.add_argument("-t", "--threads", type=int, default=1, help="Number of threads (-1 for all)")
+    other_optional_args.add_argument("-v", "--verbose", action="count", default=0, help="Verbose level")
+    other_optional_args.add_argument("-d", "--debug", action="store_true", help="Debug mode")
+    other_optional_args.add_argument("-n", "--versions", action="version", version=f"%(prog)s version '{__VERSION__}'")
+
+
+    return parser.parse_args(args)
+
+
+
+def main():
+    args = cmd_args()
+    run_extract_features(**vars(args))
 
 
 if __name__ == "__main__":
     main()
-
-## python3 extract_features.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/metadata/1485_v3_bulk_data_one_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/for_igv/data/selected_for_igv_SRR13989894_and_all_8538_info.txt.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/debug -l extract_features_log -lf -vi /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/result_final/mosaic_calling_result_seq_based_GRCh37_mosaic_calling_changePhase_2897_uniq_sorted_addheader.vcf.gz -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result_final/stutter_result_coordinate_padding_10bp_add_prseudocount_filterout_big_stutter_singleton_reads_GRCh37_stutter_model_sort_uniq.bed.gz -fo selected_for_igv_SRR13989894_and_all_8538 -ma /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/mappability/k100.Umap.MultiTrackMappability.bw ##
-## python3 extract_features.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/metadata/1485_v3_bulk_data_one_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/for_igv/data/selected_for_igv_SRR13989894_and_all_8538_info.txt.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/debug -l extract_features_log -lf -vi /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/result_final/mosaic_calling_result_seq_based_GRCh37_mosaic_calling_changePhase_2897_uniq_sorted_addheader.vcf.gz -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result_final/stutter_result_coordinate_padding_10bp_add_prseudocount_filterout_big_stutter_singleton_reads_GRCh37_stutter_model_sort_uniq.bed.gz -fo selected_for_igv_SRR13989894_and_all_8538 -ma /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/mappability/k100.Umap.MultiTrackMappability.bw -c 10 -s 133867300 -e 133869300
-## python3 extract_features.py -i /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/metadata/1485_v3_bulk_data_one_samples.csv -r /storage/douyanmeiLab/wangweixiang/data/GATK_b37_bundles/bundle/b37/bundle/b37/human_g1k_v37_decoy.fasta -b /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/for_igv/data/selected_for_igv_SRR13989894_and_all_8538_info.txt.gz -o /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/debug -l extract_features_log -lf -vi /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/mosaic_calling/result_final/mosaic_calling_result_seq_based_GRCh37_mosaic_calling_changePhase_2897_uniq_sorted_addheader.vcf.gz -si /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/stutter_model/result_final/stutter_result_coordinate_padding_10bp_add_prseudocount_filterout_big_stutter_singleton_reads_GRCh37_stutter_model_sort_uniq.bed.gz -fo selected_for_igv_SRR13989894_and_all_8538 -ma /storage/douyanmeiLab/wangweixiang/data/MosaicSTR/extract_feature/mappability/k100.Umap.MultiTrackMappability.bw -c 10 -s 2071307 -e 2071329
