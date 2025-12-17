@@ -1,10 +1,10 @@
 # BayesMonSTR
 
-A toolkit for mosaic STR mutation calling.
+A toolkit for mosaic STR mutation calling and visualization.
 
 ## Install
 
-run `./INSTALL.sh`.
+You can choose to run ./INSTALL.sh to install all four programs simultaneously, or install only the required program individually by following the instructions in each respective subdirectory.
 
 ## BayesMonSTR
 

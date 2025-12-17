@@ -26,7 +26,6 @@ git clone https://github.com/douymLab/BayesMonSTR
 conda env create -f BayesMonSTR-ATAC/environment.yaml
 conda activate BayesMonSTR-ATAC
 pip install -e BayesMonSTR-ATAC
-bcftools should be downloaded from https://github.com/samtools/bcftools
 ```
 
 ---
