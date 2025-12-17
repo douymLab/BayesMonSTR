@@ -12,7 +12,7 @@ echo "BayesMonSTR-Bulk installed"
 
 # install BayesMonSTR-ATAC
 echo "installing BayesMonSTR-ATAC..."
-conda env create -f BayesMonSTR-ATAC/environment.yaml
+conda env create -f BayesMonSTR-ATAC/environment.yml
 conda activate BayesMonSTR-ATAC
 pip install -e BayesMonSTR-ATAC
 echo "BayesMonSTR-ATAC installed"

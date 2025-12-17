@@ -23,7 +23,7 @@ It provides an end-to-end workflow including read deduplication, stutter model e
 To set up the environment and install the necessary dependencies, follow the instructions below:
 ```bash
 git clone https://github.com/douymLab/BayesMonSTR
-conda env create -f BayesMonSTR-ATAC/environment.yaml
+conda env create -f BayesMonSTR-ATAC/environment.yml
 conda activate BayesMonSTR-ATAC
 pip install -e BayesMonSTR-ATAC
 ```
