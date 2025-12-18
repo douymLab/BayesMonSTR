@@ -31,7 +31,7 @@ pip install -e BayesMonSTR-ATAC
 ---
 
 ## Demo
-A **demo dataset** is available in the `demo` directory, which can be used for testing the tool and familiarizing yourself with the workflow. Before running the demo, please download the reference genome file and ensure it is available in the  `demo/resources/` directory—either as a direct copy or via a symbolic link. To run the demo, navigate to the `demo` directory and execute the scripts directly from the `scripts` directory. In the demo, due to the small data size, estimating population parameters is prone to bias; therefore, population-related filtering has not been applied. For real datasets with a sufficiently large sample size, it is recommended to include population-level filtering.
+A demo dataset is provided in the `demo` directory for testing the tool and becoming familiar with the workflow. Before running the demo, download the reference genome file and ensure that `Homo_sapiens_assembly38.fasta` is present in the `demo/resources/` directory, either as a direct file or a symbolic link. To execute the demo, set the `demo` directory as the working directory and run the scripts directly from the `scripts` directory. These scripts can also serve as templates for processing your own data. Note that due to the small size of the demo dataset, population parameter estimation may be biased; hence, population-level filtering has been omitted. For real datasets with adequate sample sizes, it is recommended to apply population-level filtering.
 
 ---
 

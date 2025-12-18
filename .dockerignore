@@ -1,0 +1,13 @@
+.git
+__pycache__/
+*.egg-info/
+*.pyc
+data/
+outputs/
+*.bam
+*.fastq*
+*.fasta*
+*.fq*
+*.vcf*
+*.h5
+*.hdf5

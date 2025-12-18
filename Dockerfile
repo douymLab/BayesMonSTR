@@ -1,39 +1,44 @@
-# =========================================================
-# Dockerfile for BayesMonSTR + BayesMonSTR-ATAC
-# =========================================================
-
-# Use a lightweight Conda-compatible base image
 FROM mambaorg/micromamba:1.5.10
 
-# Use bash for environment activation
 SHELL ["/bin/bash", "-lc"]
-
-# Set working directory inside the container
 WORKDIR /opt/BayesMonSTR
-
-# Copy the entire repository into the container
 COPY . /opt/BayesMonSTR
 
-# Build argument: Conda environment name
-# Must match the "name:" field in BayesMonSTR-ATAC/environment.yml
-ARG ATAC_ENV=BayesMonSTR-ATAC
+# Labels (edit as needed)
+LABEL org.opencontainers.image.title="BayesMonSTR"
+LABEL org.opencontainers.image.version="1.0"
+ENV IMAGE_VERSION=1.0
 
-# Create the Conda environment from environment.yml
-RUN micromamba create -y -f BayesMonSTR-ATAC/environment.yml && \
-    micromamba clean -a -y
+ARG ENV_BAYES=BayesMonSTR-py311
+ARG ENV_ATAC=BayesMonSTR-ATAC
 
-# Install both BayesMonSTR and BayesMonSTR-ATAC into the same environment
-RUN micromamba run -n ${ATAC_ENV} python -m pip install --upgrade pip && \
-    micromamba run -n ${ATAC_ENV} python -m pip install ./BayesMonSTR/python && \
-    micromamba run -n ${ATAC_ENV} python -m pip install -e ./BayesMonSTR-ATAC
+# ATAC env
+RUN micromamba create -y -n ${ENV_ATAC} -c conda-forge -f BayesMonSTR-ATAC/environment.yml && \
+    micromamba run -n ${ENV_ATAC} python -m pip install --upgrade pip && \
+    micromamba run -n ${ENV_ATAC} python -m pip install -e ./BayesMonSTR-ATAC
 
-# Automatically activate the environment when the container starts
-ENV MAMBA_DOCKERFILE_ACTIVATE=1
-ENV CONDA_DEFAULT_ENV=${ATAC_ENV}
-ENV PATH=/opt/conda/envs/${ATAC_ENV}/bin:$PATH
+# Configure channels so python/pip can be resolved
+RUN micromamba config prepend channels conda-forge && \
+    micromamba config append channels defaults && \
+    micromamba config set channel_priority strict
 
-# Default working directory for users
+# BayesMonSTR env (Python 3.11)
+RUN micromamba create -y -n ${ENV_BAYES} -c conda-forge python=3.11 pip && \
+    micromamba run -n ${ENV_BAYES} python -m pip install --upgrade pip && \
+    micromamba run -n ${ENV_BAYES} python -m pip install ./BayesMonSTR/python
+
+
+USER root
+
+COPY docker/bayesmonstr /usr/local/bin/bayesmonstr
+COPY docker/bayesmonstr-atac /usr/local/bin/bayesmonstr-atac
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod 0755 /usr/local/bin/bayesmonstr \
+               /usr/local/bin/bayesmonstr-atac \
+               /usr/local/bin/entrypoint.sh
+
+USER mambauser
+
 WORKDIR /work
-
-# Default command
-CMD ["bash"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

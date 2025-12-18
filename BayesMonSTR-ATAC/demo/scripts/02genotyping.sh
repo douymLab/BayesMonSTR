@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# cd ..
 bayesmonstr-atac genotyping \
     --metadata ./resources/genotyping_metadata.csv \
     --reference-genome ./resources/Homo_sapiens_assembly38.fasta \
@@ -12,10 +11,10 @@ bayesmonstr-atac genotyping \
     --end 43243695 \
 
 cd ./02genotyping/results
-bgzip hg38_chr6_43243669_43243695_mosaic_calling.vcf
-tabix -p vcf hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
-bcftools sort -Oz -o hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
-tabix -p vcf hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz
+micromamba run -n bayesmonstr-atac bgzip hg38_chr6_43243669_43243695_mosaic_calling.vcf
+micromamba run -n bayesmonstr-atac tabix -p vcf -f hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
+micromamba run -n bayesmonstr-atac bcftools sort -Oz -o hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
+micromamba run -n bayesmonstr-atac tabix -p vcf -f hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz
 
 first_file=true
 > "mosaic_fraction_estimation_results.vcf"
@@ -31,5 +30,5 @@ for file in ./*_mosaic_calling.sorted.vcf.gz; do
         zcat "$file" | grep -v '^#' >> mosaic_fraction_estimation_results.vcf
     fi
 done
-bgzip mosaic_fraction_estimation_results.vcf
-tabix -p vcf mosaic_fraction_estimation_results.vcf.gz
+micromamba run -n bayesmonstr-atac bgzip mosaic_fraction_estimation_results.vcf
+micromamba run -n bayesmonstr-atac tabix -p vcf -f mosaic_fraction_estimation_results.vcf.gz
