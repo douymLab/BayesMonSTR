@@ -13,5 +13,5 @@ cd ./00stutter
 cat results/* >> stutter_result.txt
 sort -k6,6 -u stutter_result.txt >> stutter_result_uniq.txt
 sort -k1,1 -k2,2n -k3,3n stutter_result_uniq.txt >> stutter_result_uniq_sorted.bed
-micromamba run -n bayesmonstr-atac bgzip stutter_result_uniq_sorted.bed
-micromamba run -n bayesmonstr-atac tabix -p bed -f stutter_result_uniq_sorted.bed.gz
+bgzip stutter_result_uniq_sorted.bed
+tabix -p bed -f stutter_result_uniq_sorted.bed.gz

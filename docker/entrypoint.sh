@@ -38,6 +38,10 @@ case "$cmd" in
   bayesmonstr-atac)
     exec micromamba run -n "${ENV_ATAC}" bayesmonstr-atac "$@"
     ;;
+  bgzip | tabix | bcftools)
+    # These tools are in the ATAC environment (htslib-based)
+    exec micromamba run -n "${ENV_ATAC}" "$cmd" "$@"
+    ;;
   help|-h|--help)
     print_help
     exit 0

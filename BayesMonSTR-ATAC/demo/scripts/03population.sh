@@ -4,7 +4,7 @@ bayesmonstr-atac pop \
   --vcf-file ./02genotyping/results/mosaic_fraction_estimation_results.vcf.gz \
   --output-file ./03population/pop_infors_output.txt
   
-micromamba run -n bayesmonstr-atac bgzip ./03population/pop_infors_output.txt
-micromamba run -n bayesmonstr-atac tabix -p bed -f ./03population/pop_infors_output.txt.gz
-micromamba run -n bayesmonstr-atac bgzip ./03population/pop_infors_output_mosaic_recurrent_info.txt
-micromamba run -n bayesmonstr-atac tabix -p bed -f ./03population/pop_infors_output_mosaic_recurrent_info.txt.gz
+bgzip ./03population/pop_infors_output.txt
+tabix -p bed -f ./03population/pop_infors_output.txt.gz
+bgzip ./03population/pop_infors_output_mosaic_recurrent_info.txt
+tabix -p bed -f ./03population/pop_infors_output_mosaic_recurrent_info.txt.gz
