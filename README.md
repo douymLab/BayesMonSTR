@@ -61,7 +61,7 @@ docker run --rm bayesmonstr bayesmonstr-atac --help
 docker run --rm -it bayesmonstr bash
 ```
 
-Before running the demo, ensure that the reference genome files are downloaded. If not, visit https://github.com/broadinstitute/gatk/tree/master/src/test/resources/large to obtain them. Specifically, make sure the file `human_g1k_v37_decoy.fasta` is present in the `BayesMonSTR/demo/ directory` and `Homo_sapiens_assembly38.fasta` is available in the `BayesMonSTR-ATAC/demo/resources/` directory, either as a direct copy or a symbolic link.
+Before running the demo, ensure that the reference genome files are downloaded. If not, visit https://github.com/broadinstitute/gatk/tree/master/src/test/resources/large to obtain them. Specifically, make sure the file `human_g1k_v37_decoy.fasta` is present in the `BayesMonSTR/demo/` directory and `Homo_sapiens_assembly38.fasta` is available in the `BayesMonSTR-ATAC/demo/resources/` directory, either as a direct copy or a symbolic link.
 
 Run BayesMonSTR demo by
 
