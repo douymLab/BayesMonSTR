@@ -27,7 +27,7 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
          p=0.5, m=0, u=0.8, l=1e-8, d=1, ms=50, pgi=0.3, r=0.3, cf=0):
     
     if filters_json is None:
-        filters_json = os.path.join(os.path.dirname(__file__), '..', 'src', 'cell_level_filters.json')
+        filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
     if chrom is not None:
         output1 = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.bed"
         output2 = f"{output_dir}/tmp/02extract_features/{sample}/{sample}_{chrom}_{start}_{end}.csv"

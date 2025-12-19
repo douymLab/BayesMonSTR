@@ -9,8 +9,8 @@ LABEL org.opencontainers.image.title="BayesMonSTR"
 LABEL org.opencontainers.image.version="1.0"
 ENV IMAGE_VERSION=1.0
 
-ARG ENV_BAYES=BayesMonSTR-py311
-ARG ENV_ATAC=BayesMonSTR-ATAC
+ARG ENV_BAYES=bayesmonstr
+ARG ENV_ATAC=bayesmonstr-atac
 
 # ATAC env
 RUN micromamba create -y -n ${ENV_ATAC} -c conda-forge -f BayesMonSTR-ATAC/environment.yml && \
@@ -32,10 +32,16 @@ USER root
 
 COPY docker/bayesmonstr /usr/local/bin/bayesmonstr
 COPY docker/bayesmonstr-atac /usr/local/bin/bayesmonstr-atac
+COPY docker/bgzip /usr/local/bin/bgzip
+COPY docker/tabix /usr/local/bin/tabix
+COPY docker/bcftools /usr/local/bin/bcftools
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod 0755 /usr/local/bin/bayesmonstr \
                /usr/local/bin/bayesmonstr-atac \
+               /usr/local/bin/bgzip \
+               /usr/local/bin/tabix \
+               /usr/local/bin/bcftools \
                /usr/local/bin/entrypoint.sh
 
 USER mambauser

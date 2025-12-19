@@ -24,7 +24,7 @@ To set up the environment and install the necessary dependencies, follow the ins
 ```bash
 git clone https://github.com/douymLab/BayesMonSTR
 conda env create -f BayesMonSTR-ATAC/environment.yml
-conda activate BayesMonSTR-ATAC
+conda activate bayesmonstr-atac
 pip install -e BayesMonSTR-ATAC
 ```
 

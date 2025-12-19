@@ -58,7 +58,7 @@ Abtain help message by
 docker run --rm bayesmonstr help
 docker run --rm bayesmonstr bayesmonstr --help
 docker run --rm bayesmonstr bayesmonstr-atac --help
-docker run --rm -it bayesmonstr
+docker run --rm -it bayesmonstr bash
 ```
 
 Before running the demo, ensure that the reference genome files are downloaded. If not, visit https://github.com/broadinstitute/gatk/tree/master/src/test/resources/large to obtain them. Specifically, make sure the file `human_g1k_v37_decoy.fasta` is present in the `BayesMonSTR/demo/ directory` and `Homo_sapiens_assembly38.fasta` is available in the `BayesMonSTR-ATAC/demo/resources/` directory, either as a direct copy or a symbolic link.
@@ -66,7 +66,9 @@ Before running the demo, ensure that the reference genome files are downloaded. 
 Run BayesMonSTR demo by
 
 ```shell
-mkdir -p results
+cd {path_to_BayesMonSTR}
+
+mkdir -p ./BayesMonSTR/results
 
 # run genotyping
 sudo docker run -it --rm \
@@ -89,6 +91,7 @@ sudo docker run -it --rm \
 sudo docker run -it --rm \
     -v ./BayesMonSTR/demo/:/demo \
     -v ./BayesMonSTR/results:/results \
+    -v ./BayesMonSTR/scripts:/scripts \
     -w /demo \
     bayesmonstr \
     python /scripts/mosaic.py \
@@ -99,6 +102,8 @@ sudo docker run -it --rm \
 Run BayesMonSTR-ATAC demo by
 
 ```shell
+cd {path_to_BayesMonSTR}
+
 # Estimation of locus-based stutter model
 docker run --rm \
     -v ./BayesMonSTR-ATAC/demo:/data \
@@ -134,3 +139,6 @@ docker run --rm \
     bayesmonstr \
     bash /data/scripts/04filter.sh
 ```
+
+Because of permission restrictions in the Docker image, the warning
+`[bgzip] Failed to set file specifications.` may occur, but since it does not affect the result, it can be safely ignored.

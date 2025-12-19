@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec micromamba run -n bayesmonstr-py311 bayesmonstr "$@"
+exec micromamba run -n bayesmonstr BayesMonSTR "$@"

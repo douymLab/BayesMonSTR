@@ -2,3 +2,5 @@
 **/__pycache__/
 **/*.egg-info/
 **/*.fasta*
+BayesMonSTR-ATAC/demo/0*
+BayesMonSTR/results

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Conda/micromamba environment names (must match your Dockerfile)
-ENV_BAYES="bayesmonstr-py311"     # Python 3.11 env for BayesMonSTR
+ENV_BAYES="bayesmonstr"     # Python 3.11 env for BayesMonSTR
 ENV_ATAC="bayesmonstr-atac"       # ATAC env created from environment.yml
 IMAGE_VERSION="${IMAGE_VERSION:-unknown}"
 
@@ -37,10 +37,6 @@ case "$cmd" in
     ;;
   bayesmonstr-atac)
     exec micromamba run -n "${ENV_ATAC}" bayesmonstr-atac "$@"
-    ;;
-  bgzip | tabix | bcftools)
-    # These tools are in the ATAC environment (htslib-based)
-    exec micromamba run -n "${ENV_ATAC}" "$cmd" "$@"
     ;;
   help|-h|--help)
     print_help

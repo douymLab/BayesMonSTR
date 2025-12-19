@@ -1,0 +1,2 @@
+chr,start,end,ref,alt,germline genotype,mosaic genotype,mutation type,id,sample,mutant cell count,cell barcode,cell type,depth,mosaic depth,VAF,posterior
+chr6,43243672,43243681,CGCCGCCGCA,C,0/0,0/1,Deletion,Human_STR_1232500,demo2,1,CTACTTATCCCTAAAG-1,Ex,38,1,0.0256410256410256,0.989466844927714
