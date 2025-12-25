@@ -208,11 +208,11 @@ bayesmonstr-atac filter \
 * `--reference-genome, -r` : Reference genome FASTA
 * `--vcf, -v` : The VCF file generated from genotyping step
 * `--stutter-model, -sm` : The stutter model generated from stutter model estimation step
-* `--cell-barcode, -cb` : The TSV file containing two columns: `cell barcode` and `cell type`, where each row assigns a predicted or annotated cell type to a specific cell barcode.
 * `--pop-info, -pi` : The population information file generated from population information extraction step
 * `--recurrent-info, -ri` : The recurrent mosaic information file generated from population information extraction step
 * `--mappability, -mp` : The BED file containing mappability information (K24 and K100) for regions in the reference genome. You can directly use `demo/resource/hg38.hipstr_reference_0based_Human_STR_1232500.bed.gz`.
 * `--metadata, -i` :  The metadata CSV file used for genotyping can be reused.
+* `--cell-barcode, -cb` : The TSV file containing two columns: `cell barcode` and `cell type`, where each row assigns a predicted or annotated cell type to a specific cell barcode. If you provide the cell barcode list, candidate mutations of barcodes that do not appear in this list will be automatically excluded. If you wish to retain these loci, modify filter named `na_celltype_rc_mosaic` in `src/filters.json`. (default: `None`)
 * `--chrom, -c` : Chromosome (default: empty)
 * `--start, -s` : Genomic start position (default: `0`)
 * `--end, -e` : Genomic end position (default: `1000000000`)

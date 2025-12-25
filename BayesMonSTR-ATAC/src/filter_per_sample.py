@@ -29,17 +29,19 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
     if filters_json is None:
         filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
     if chrom is not None:
-        output1 = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.bed"
-        output2 = f"{output_dir}/tmp/02extract_features/{sample}/{sample}_{chrom}_{start}_{end}.csv"
-        input_bed_gz = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}_sorted.bed.gz"
-        output3 = f"{output_dir}/tmp/03final_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.txt"
+        output1 = f"{output_dir}/tmp_{chrom}_{start}_{end}/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.bed"
+        output2 = f"{output_dir}/tmp_{chrom}_{start}_{end}/02extract_features/{sample}/{sample}_{chrom}_{start}_{end}.csv"
+        input_bed_gz = f"{output_dir}/tmp_{chrom}_{start}_{end}/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}_sorted.bed.gz"
+        output3 = f"{output_dir}/tmp_{chrom}_{start}_{end}/03final_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.txt"
         output4 = f"{output_dir}/{sample}/{sample}_{chrom}_{start}_{end}.csv"
+        tmp_dir = f"{output_dir}/tmp_{chrom}_{start}_{end}"
     else:
         output1 = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}.bed"
         output2 = f"{output_dir}/tmp/02extract_features/{sample}/{sample}.csv"
         input_bed_gz = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_sorted.bed.gz"
         output3 = f"{output_dir}/tmp/03final_hard_filter/{sample}/{sample}.txt"
         output4 = f"{output_dir}/{sample}/{sample}.csv"
+        tmp_dir = f"{output_dir}/tmp"
 
     # Step 1: Initial Hard Filter
     if file_exists_and_not_empty(output1):
@@ -68,7 +70,7 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
             metadata=metadata,
             reference_genome=reference_genome,
             bed_panel=input_bed_gz,
-            output_dir=f"{output_dir}/tmp/02extract_features/{sample}",
+            output_dir=f"{tmp_dir}/02extract_features/{sample}",
             sample_name=sample,
             variant_info=vcf,
             stutter_model_in=stutter_model,
@@ -124,8 +126,8 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         print(f"Warning: No loci of {sample} in {chrom}:{start}-{end} passed the filter.", file=sys.stderr)
 
     if not keep_temp:
-        shutil.rmtree(f"{output_dir}/tmp")
-        print(f"Temporary directory has been deleted: {output_dir}/tmp")
+        shutil.rmtree(tmp_dir)
+        print(f"Temporary directory has been deleted: {tmp_dir}")
 
 
 
@@ -138,9 +140,9 @@ if __name__ == "__main__":
     parser.add_argument("--reference_genome", required=True, help="Path to reference genome (FASTA)")
     parser.add_argument("--vcf", required=True, help="Input VCF file (mosaic_fraction_estimation_results.vcf.gz)")
     parser.add_argument("--stutter_model", required=True, help="Stutter result BED file")
-    parser.add_argument("--cell_barcode", required=True, help="Cell barcode list file")
     parser.add_argument("--mappability", required=True, help="Mappability BED file")
     parser.add_argument("--metadata", required=True, help="Features metadata CSV")
+    parser.add_argument("--cell_barcode", default=None, help="Cell barcode list file")
     parser.add_argument("--pop_info", required=False, help="Population info file (pop_infors_output.txt.gz)")
     parser.add_argument("--recurrent_info", required=False, help="Recurrent mosaic info file")
     parser.add_argument("--chrom", type=str, default="", help="Chromosome (e.g., chr6)")

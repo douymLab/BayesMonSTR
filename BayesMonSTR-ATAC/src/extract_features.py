@@ -6023,9 +6023,9 @@ def features_extract_prepare(parsed_options):
     metadata = pd.read_csv(parsed_options.metadata, sep=",", index_col=0)
     if parsed_options.sample_name is not None:
         metadata = metadata[metadata['Sample Name']==parsed_options.sample_name]
-    bam_files = metadata.iloc[:, 4]
-    wgs_mean_depth = metadata.iloc[:, 5]
-    str_used_mean_depth = metadata.iloc[:, 6]
+    bam_files = metadata['bam_path']
+    wgs_mean_depth = metadata['mosdepth_wgs_mean_depth']
+    str_used_mean_depth = metadata['used_genotyping_str_mean_depth']
     features_extract_all_params["bam_files"] = bam_files
     features_extract_all_params["wgs_mean_depth"] = wgs_mean_depth
     features_extract_all_params["str_used_mean_depth"] = str_used_mean_depth
@@ -6038,9 +6038,9 @@ def features_extract_prepare(parsed_options):
     os.system("mkdir -p " + parsed_options.output_dir)
     os.system("mkdir -p " + log_dir)
     os.system("mkdir -p " + result_dir)
-    bed_name = parsed_options.bed_panel.split("/")[-1].split(".")[0]
+    # bed_name = parsed_options.bed_panel.split("/")[-1].split(".")[0]
     if parsed_options.chrom:
-        uid = f"{parsed_options.chrom}_{parsed_options.start}_{parsed_options.end}"
+        uid = f"{parsed_options.sample_name}_{parsed_options.chrom}_{parsed_options.start}_{parsed_options.end}"
     else:
         uid = parsed_options.sample_name
     fail_file = (
@@ -6084,14 +6084,13 @@ def features_extract_prepare(parsed_options):
     all_samples_median_depth_dict = {}
     all_samples_point_depth_dict = {}
     all_samples_all_chroms_point_depth_dict = {}
-    for bam in bam_files:
+    for bam_name, bam in zip(sample_name_list, bam_files):
         if "bam" in bam:
             pysam_bam = pysam.AlignmentFile(bam, "rb")
         else:
             pysam_bam = pysam.AlignmentFile(
                 bam, "rc", reference_filename=ref_file
             )
-        bam_name = bam.split("/")[-1].split(".")[0]
         sample_all_chroms_depth_list = []
         all_samples_all_chroms_point_depth_dict[bam_name] = {}
         for chrom_id in all_chroms_list:

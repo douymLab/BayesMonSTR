@@ -66,8 +66,10 @@ def parse_allele_mosaic(row, CB_list):
     result_df = pd.DataFrame(result, columns=["Allele_index", "Read_name", "Barcode"])
     result_df["Read_name"] = result_df["Read_name"].str.replace("-", ":")
 
-
-    result_df = pd.merge(result_df, CB_list, on='Barcode', how='left')
+    if CB_list.empty:
+        result_df['CellType'] = "Unknown"
+    else:
+        result_df = pd.merge(result_df, CB_list, on='Barcode', how='left')
 
 
     result_df_mosaic = result_df[result_df["Allele_index"] == key]
@@ -363,9 +365,9 @@ def analyze_filters(df, filters, output_prefix, title="Filtering Effect Analysis
 def run_cell_level_filter(
     input_csv: str,
     sample_name: str,
-    cb_list_tsv: str,
     filters_json: str,
     output_file: str,
+    cb_list_tsv: str = "None",
     save_intermediate: bool = True,
     mutation_type: str = "both"
 ) -> pd.DataFrame:
@@ -376,9 +378,12 @@ def run_cell_level_filter(
         raise FileNotFoundError(f"Input file not found: {input_csv}")
     df_origin = pd.read_csv(input_csv)
 
-    if not os.path.exists(cb_list_tsv):
-        raise FileNotFoundError(f"Cell barcode list file not found: {cb_list_tsv}")
-    CB_list = pd.read_csv(cb_list_tsv, header=None, sep="\t", names=['Barcode', 'CellType'])
+    if cb_list_tsv is None:
+        CB_list = pd.DataFrame(columns=['Barcode', 'CellType'])
+    else:
+        if not os.path.exists(cb_list_tsv):
+            raise FileNotFoundError(f"Cell barcode list file not found: {cb_list_tsv}")
+        CB_list = pd.read_csv(cb_list_tsv, header=None, sep="\t", names=['Barcode', 'CellType'])
 
     if not os.path.exists(filters_json):
         raise FileNotFoundError(f"Filters file not found: {filters_json}")
@@ -407,9 +412,9 @@ def run_cell_level_filter(
         clean_df = clean_df[clean_df['barcode_count_mosaic'] > 1]
 
     if save_intermediate:
-        intermediate_path = output_file
-        clean_df.to_csv(intermediate_path, index=False)
-        print(f"Filtering completed. Final result saved to: {intermediate_path}")        
+        df_processed.to_csv(f'{output_prefix}_all.csv', index=False)
+        clean_df.to_csv(output_file, index=False)
+        print(f"Filtering completed. Final result saved to: {output_file}")        
 
     basic_cols = ['chrom','reference_start_coordinate_1_based_include','reference_end_coordinate_1_based_include',
                 'mut_source_seq','mut_target_seq','GT','MGT','alleles_mut_type',
@@ -434,8 +439,8 @@ def main():
 
     parser.add_argument('--input_csv', type=str, required=True, help='Input CSV file')
     parser.add_argument('--sample_name', type=str, required=True, help='Sample name')
-    parser.add_argument('--cb_list_tsv', type=str, required=True, help='Cell barcode to cell type mapping file (TSV)')
     parser.add_argument('--filters_json', type=str, required=True, help='JSON file containing filter rules')
+    parser.add_argument('--cb_list_tsv', type=str, default="None", help='Cell barcode to cell type mapping file (TSV)')
     parser.add_argument('--mutation_type', required=False, default="both", choices=["both", "cell_specific", "share"], help='Type of mutation')
     parser.add_argument('--output_file', type=str, required=True, help='Output file path')
 
@@ -447,11 +452,11 @@ def main():
         run_cell_level_filter(
             input_csv=args.input_csv,
             sample_name=args.sample_name,
-            cb_list_tsv=args.cb_list_tsv,
             filters_json=args.filters_json,
+            cb_list_tsv=args.cb_list_tsv,
+            mutation_type=args.mutation_type,
             output_file=args.output_file,
-            save_intermediate=True,
-            mutation_type=args.mutation_type
+            save_intermediate=True
         )
         print(f"✅ Processing completed for sample '{args.sample}'.")
     except Exception as e:

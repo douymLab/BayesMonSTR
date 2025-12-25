@@ -316,25 +316,26 @@ def mosaic_fraction_estimate_prepare(parsed_options):
     # logging.info('Command: %s', python_command)
     genome_wide_info_dict["ref_fa"] = parsed_options.reference_genome
     metadata = pd.read_csv(parsed_options.metadata, sep=",", index_col=0)
-    bam_files = metadata.iloc[:, 4]
+    bam_files = metadata['bam_path']
+    sample_name_list = metadata['Sample Name'].to_list()
     mosaic_fraction_all_params["bam_files"] = bam_files
     mosaic_fraction_all_params["vcf_files"] = parsed_options.phasing
-    if MIX:  # HACK: temp for Mix Samples
-        sample_name_list = [
-            "_".join(bam.split("/")[-1].split(".")[0:2]) for bam in bam_files
-        ]
-    elif GIAB:
-        sample_name_list = [
-            "_".join(bam.split("/")[-1].split(".")[0:-1]) for bam in bam_files
-        ]
-    elif PSEUDOBULK:
-        sample_name_list = [
-            "_".join(bam.split("/")[-1].split(".")[0:-1]) for bam in bam_files
-        ]
-    else:
-        sample_name_list = [
-            bam.split("/")[-1].split(".")[0] for bam in bam_files
-        ]
+    # if MIX:  # HACK: temp for Mix Samples
+    #     sample_name_list = [
+    #         "_".join(bam.split("/")[-1].split(".")[0:2]) for bam in bam_files
+    #     ]
+    # elif GIAB:
+    #     sample_name_list = [
+    #         "_".join(bam.split("/")[-1].split(".")[0:-1]) for bam in bam_files
+    #     ]
+    # elif PSEUDOBULK:
+    #     sample_name_list = [
+    #         "_".join(bam.split("/")[-1].split(".")[0:-1]) for bam in bam_files
+    #     ]
+    # else:
+    #     sample_name_list = [
+    #         bam.split("/")[-1].split(".")[0] for bam in bam_files
+    #     ]
     mosaic_fraction_all_params["bam_name"] = sample_name_list
     genome_wide_info_dict["sample_name_list"] = sample_name_list
 
