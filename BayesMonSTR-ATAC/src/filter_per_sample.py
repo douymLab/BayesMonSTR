@@ -3,6 +3,7 @@ import sys
 import subprocess
 from pathlib import Path
 import shutil
+import pandas as pd
 
 from initial_hard_filter import run_initial_hard_filter
 from extract_features import run_extract_features
@@ -23,7 +24,7 @@ def file_exists_and_not_empty(filepath):
 def run(sample, reference_genome, vcf, stutter_model, cell_barcode, 
          pop_info, recurrent_info, mappability, metadata, chrom=None, start=0, end=1000000000, 
          output_dir="./04filter", filters_json=None,
-         mis_or_indel="both", mode="all", mutation_type="both",keep_temp=True,
+         mis_or_indel="both", mode="all", mutation_type="both",keep_temp=True,plot=True,
          p=0.5, m=0, u=0.8, l=1e-8, d=1, ms=50, pgi=0.3, r=0.3, cf=0):
     
     if filters_json is None:
@@ -82,6 +83,9 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         print("extract_features DONE.", file=sys.stderr)
     else:
         print(f"Warning: No loci of {sample} in {chrom}:{start}-{end} passed the filter.", file=sys.stderr)
+        if not keep_temp:
+            shutil.rmtree(tmp_dir)
+            print(f"Temporary directory has been deleted: {tmp_dir}")
         return
 
 
@@ -101,6 +105,9 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         print("Final hard filter DONE.", file=sys.stderr)
     else:
         print(f"Warning: No loci of {sample} in {chrom}:{start}-{end} passed the filter.", file=sys.stderr)
+        if not keep_temp:
+            shutil.rmtree(tmp_dir)
+            print(f"Temporary directory has been deleted: {tmp_dir}")
         return
 
 
@@ -116,9 +123,14 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
             cb_list_tsv=cell_barcode,
             filters_json=filters_json, 
             mutation_type=mutation_type,
-            output_file=output4
+            output_file=output4,
+            plot=plot
         )
         print("Cell level filter DONE.", file=sys.stderr)
+        candidate = pd.read_csv(output1, sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
+        fail = pd.read_csv(output1.replace(".bed", "_fail.bed"), sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
+        all = pd.concat([candidate, fail], axis=0)
+        all.to_csv(output4.replace(".csv", "_raw.bed"),index=False)
     else:
         print(f"Warning: No loci of {sample} in {chrom}:{start}-{end} passed the filter.", file=sys.stderr)
 
@@ -153,6 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("--mis_or_indel", default="both", choices=["both", "snv", "indel"])
     parser.add_argument("--mode", default="all", choices=["rf", "hard_filter", "both", "either", "all"])
     parser.add_argument('--mutation_type', required=False, default="both", choices=["both", "cell_specific", "share"], help='Type of mutation')
+    parser.add_argument('--plot', type=bool, required=False, default=True, help='Whether to plot count of loci during filtering.')
     parser.add_argument('--keep_temp', required=False, default=True, help='Whether to keep the temporary files.')
     parser.add_argument("--p", type=float, default=0.5)
     parser.add_argument("--m", type=float, default=0)
@@ -185,6 +198,7 @@ if __name__ == "__main__":
         mis_or_indel=args.mis_or_indel,
         mode=args.mode,
         mutation_type=args.mutation_type,
+        plot=args.plot,
         keep_temp=args.keep_temp,
         p=args.p, m=args.m, u=args.u, l=args.l, d=args.d, ms=args.ms,
         pgi=args.pgi, r=args.r, cf=args.cf

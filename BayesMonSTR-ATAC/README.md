@@ -13,6 +13,7 @@ It provides an end-to-end workflow including read deduplication, stutter model e
   - [3. Estimation of Mosaic Fraction and Mosaic Genotyping (all samples)](#3-estimation-of-mosaic-fraction-and-mosaic-genotyping-all-samples)
   - [4. Extraction of population information (all samples)](#4-extraction-of-population-information-all-samples)
   - [5. Filtering for Each Sample (single sample)](#5-filtering-for-each-sample-single-sample)
+  - [6. Combination of chunked results (all sample)](#6-Combination-of-chunked-results-all-samples)
 - [Citation](#citation)
 - [License](#license)
 - [Contact](#contact)
@@ -219,6 +220,27 @@ bayesmonstr-atac filter \
 * `--filters-json, -fj` : Json file for filtering thresholds. Default path is `src/filters.json`. In the provided JSON file, there are explanations for each filter, based on which you can modify the threshold of the filters.
 * `--mutation-type, -mt` : Expected type of mutation. Select from cell specific, share and both (default: `both`).
 * `--output-dir, -o` : Output directory (default: `./04filter`)
+* `--plot, -p` : Add `--plot` in command line to plot count of loci during filtering.
+* `--keep-temp, -k` : Add `--keep-temp` in command line to keep the temporary files.
+
+---
+
+### 6. Combine chunked results
+
+If you run the genotyping using chunked genomic intervals, use this command to combine all the results or results by sample from the different intervals. 
+
+```bash
+bayesmonstr-atac combine \
+  --input_dir filter_dir \
+  --output_prefix final_results
+```
+
+**Options**
+
+* `--input-dir, -i` : Root input directory (default: `./04filter`)
+* `--output-prefix, -o` : Prefix of outputs (default: `./04filter/results`)
+* `--filters-json, -fj` : Same as filter step
+* `--mutation-type, -mt` : Same as filter step
 
 ---
 

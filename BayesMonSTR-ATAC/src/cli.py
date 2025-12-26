@@ -126,7 +126,8 @@ def filter(
     filters_json: str = typer.Option(None, "--filters-json", "-fj", help="Json file for filtering thresholds. Default path is src/filters.json."),
     mutation_type: str = typer.Option("both", '--mutation-type', "-mt", click_type=MUT_TYPE, help='Expected type of mutation'),
     output_dir: str = typer.Option("./04filter", "--output-dir", "-o", help="Root output directory"),
-    keep_temp: bool = typer.Option(False, "--keep-temp", "-k", help='Whether to keep the temporary files.'),
+    plot: bool = typer.Option(False, "--plot", "-p", help='Add --plot in command line to plot count of loci during filtering.'),
+    keep_temp: bool = typer.Option(False, "--keep-temp", "-k", help='Add --keep-temp in command line to keep the temporary files.'),
 
 ):
     """Filter genotyping results."""
@@ -137,10 +138,25 @@ def filter(
         stutter_model=stutter_model, cell_barcode=cell_barcode, pop_info=pop_info,
         recurrent_info=recurrent_info, mappability=mappability, metadata=metadata,
         chrom=chrom, start=start, end=end,
-        filters_json=filters_json, mutation_type=mutation_type, output_dir=output_dir, keep_temp=keep_temp
+        filters_json=filters_json, mutation_type=mutation_type, output_dir=output_dir, keep_temp=keep_temp, plot=plot
     )
     typer.echo("✅ Filtering complete.")
 
+
+
+
+@app.command(help="Combine chunked results.")
+def combine(
+    input_dir: str = typer.Option("./04filter", "--input-dir", "-i", help="Root input directory"),
+    output_prefix: str = typer.Option("./04filter/results", "--output-prefix", "-o", help="Prefix of outputs"),
+    filters_json: str = typer.Option(None, "--filters-json", "-fj", help="Json file for filtering thresholds. Default path is src/filters.json."),
+    mutation_type: str = typer.Option("both", '--mutation-type', "-mt", click_type=MUT_TYPE, help='Expected type of mutation')
+):
+    """Combine chunked results."""
+    typer.echo(f"Combine chunked results from {input_dir} -> {output_prefix}...")
+    import combine
+    combine.run(input_dir=input_dir, output_prefix=output_prefix, filters_json=filters_json, mutation_type=mutation_type)
+    typer.echo("✅ Results combined.")
 
 
 

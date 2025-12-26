@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import sys
-import matplotlib.pyplot as plt
 from pathlib import Path
 import warnings
 
@@ -170,7 +169,7 @@ def parse_allele_mosaic(row, CB_list):
     ])
 
 
-def analyze_filters(df, filters, output_prefix, title="Filtering Effect Analysis"):
+def analyze_filters(df, filters, output_prefix, plot=True, title="Filtering Effect Analysis"):
     """
     Apply filters sequentially and individually, generate plots and return filtered DataFrame.
     Skips any filter if:
@@ -259,48 +258,7 @@ def analyze_filters(df, filters, output_prefix, title="Filtering Effect Analysis
 
         valid_filters.append(filt)
 
-
-    # === Step 2: Individual filtering (on original df) ===
-    individual_results = []
-    for filt in filters:  # Iterate over original to report all, but skip invalid
-        col, op, thresh = filt['column'], filt['operator'], filt['threshold']
-        label = filt.get('label', f"{col} {op} {thresh}")
-
-
-        # Skip if not in valid_filters
-        if filt not in valid_filters:
-            continue
-
-
-        try:
-            if op == '>':
-                passed = df[df[col] > thresh]
-            elif op == '>=':
-                passed = df[df[col] >= thresh]
-            elif op == '<':
-                passed = df[df[col] < thresh]
-            elif op == '<=':
-                passed = df[df[col] <= thresh]
-            elif op == '==':
-                passed = df[df[col] == thresh]
-            elif op == '!=':
-                passed = df[df[col] != thresh]
-            elif op == 'in':
-                passed = df[df[col].isin(thresh)]
-            elif op == 'not in':
-                passed = df[~df[col].isin(thresh)]
-            else:
-                continue  # should not reach here
-            n_filtered_out = n_total - len(passed)
-            individual_results.append({'filter': label, 'filtered_out': n_filtered_out})
-        except Exception as e:
-            warnings.warn(f"Error applying filter {label}: {e}")
-
-
-    individual_df = pd.DataFrame(individual_results)
-
-
-    # === Step 3: Sequential filtering ===
+    # === Step 2: Sequential filtering ===
     current_df = df.copy()
     sequential_results = [{'step': 'Original', 'remaining': n_total}]
     for filt in valid_filters:
@@ -329,34 +287,71 @@ def analyze_filters(df, filters, output_prefix, title="Filtering Effect Analysis
 
     sequential_df = pd.DataFrame(sequential_results)
 
+    if plot:
+        # === Step 3: Plotting ===
+        # Sequential plot
+        import matplotlib.pyplot as plt
 
-    # === Step 4: Plotting ===
-    # Sequential plot
-    plt.figure(figsize=(10, 6))
-    plt.bar(sequential_df['step'], sequential_df['remaining'], color='skyblue', edgecolor='navy', alpha=0.7)
-    plt.title(f"{title}\nSequential Filtering: Sites Remaining", fontsize=12)
-    plt.ylabel("Number of Sites Remaining")
-    plt.xticks(rotation=45, ha='right')
-    for i, row in sequential_df.iterrows():
-        plt.text(i, row['remaining'] + n_total * 0.01, str(row['remaining']), ha='center', va='bottom', fontsize=9)
-    plt.tight_layout()
-    plt.savefig(f'{output_prefix}_sequential_filtering.png', dpi=300)
-    plt.close()
-
-
-    # Individual plot
-    if not individual_df.empty:
         plt.figure(figsize=(10, 6))
-        plt.barh(individual_df['filter'], individual_df['filtered_out'], color='salmon', edgecolor='darkred', alpha=0.7)
-        plt.title("Individual Filtering: Sites Filtered Out by Each Criterion Alone", fontsize=12)
-        plt.xlabel("Number of Sites Filtered Out")
-        for i, row in individual_df.iterrows():
-            plt.text(row['filtered_out'] + n_total * 0.01, i, str(row['filtered_out']), va='center', fontsize=9)
+        plt.bar(sequential_df['step'], sequential_df['remaining'], color='skyblue', edgecolor='navy', alpha=0.7)
+        plt.title(f"{title}\nSequential Filtering: Sites Remaining", fontsize=12)
+        plt.ylabel("Number of Sites Remaining")
+        plt.xticks(rotation=45, ha='right')
+        for i, row in sequential_df.iterrows():
+            plt.text(i, row['remaining'] + n_total * 0.01, str(row['remaining']), ha='center', va='bottom', fontsize=9)
         plt.tight_layout()
-        plt.savefig(f'{output_prefix}_individual_filtering.png', dpi=300)
+        plt.savefig(f'{output_prefix}_sequential_filtering.png', dpi=300)
         plt.close()
-    else:
-        warnings.warn("No valid filters applied. Skipping individual filtering plot.")
+
+        # Individual plot
+        individual_results = []
+        for filt in filters:  # Iterate over original to report all, but skip invalid
+            col, op, thresh = filt['column'], filt['operator'], filt['threshold']
+            label = filt.get('label', f"{col} {op} {thresh}")
+
+
+            # Skip if not in valid_filters
+            if filt not in valid_filters:
+                continue
+
+
+            try:
+                if op == '>':
+                    passed = df[df[col] > thresh]
+                elif op == '>=':
+                    passed = df[df[col] >= thresh]
+                elif op == '<':
+                    passed = df[df[col] < thresh]
+                elif op == '<=':
+                    passed = df[df[col] <= thresh]
+                elif op == '==':
+                    passed = df[df[col] == thresh]
+                elif op == '!=':
+                    passed = df[df[col] != thresh]
+                elif op == 'in':
+                    passed = df[df[col].isin(thresh)]
+                elif op == 'not in':
+                    passed = df[~df[col].isin(thresh)]
+                else:
+                    continue  # should not reach here
+                n_filtered_out = n_total - len(passed)
+                individual_results.append({'filter': label, 'filtered_out': n_filtered_out})
+            except Exception as e:
+                warnings.warn(f"Error applying filter {label}: {e}")
+        individual_df = pd.DataFrame(individual_results)
+
+        if not individual_df.empty:
+            plt.figure(figsize=(10, 6))
+            plt.barh(individual_df['filter'], individual_df['filtered_out'], color='salmon', edgecolor='darkred', alpha=0.7)
+            plt.title("Individual Filtering: Sites Filtered Out by Each Criterion Alone", fontsize=12)
+            plt.xlabel("Number of Sites Filtered Out")
+            for i, row in individual_df.iterrows():
+                plt.text(row['filtered_out'] + n_total * 0.01, i, str(row['filtered_out']), va='center', fontsize=9)
+            plt.tight_layout()
+            plt.savefig(f'{output_prefix}_individual_filtering.png', dpi=300)
+            plt.close()
+        else:
+            warnings.warn("No valid filters applied. Skipping individual filtering plot.")
 
 
     return current_df
@@ -368,8 +363,10 @@ def run_cell_level_filter(
     filters_json: str,
     output_file: str,
     cb_list_tsv: str = "None",
-    save_intermediate: bool = True,
-    mutation_type: str = "both"
+    mutation_type: str = "both",
+    plot: bool = True,
+    save_intermediate: bool = True
+    
 ) -> pd.DataFrame:
     output_prefix=Path(output_file).with_suffix('')
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -403,7 +400,8 @@ def run_cell_level_filter(
         df_processed,
         filters,
         title=f"QC Filters - {sample_name}",
-        output_prefix=output_prefix
+        output_prefix=output_prefix,
+        plot=plot
     )
 
     if mutation_type == 'cell_specific':
@@ -413,7 +411,7 @@ def run_cell_level_filter(
 
     if save_intermediate:
         df_processed.to_csv(f'{output_prefix}_all.csv', index=False)
-        clean_df.to_csv(output_file, index=False)
+        clean_df.to_csv(f'{output_prefix}_clean.csv', index=False)
         print(f"Filtering completed. Final result saved to: {output_file}")        
 
     basic_cols = ['chrom','reference_start_coordinate_1_based_include','reference_end_coordinate_1_based_include',
@@ -427,7 +425,7 @@ def run_cell_level_filter(
                 
     clean_df_simp = clean_df[basic_cols]
     clean_df_simp.columns = basic_cols_name
-    clean_path = f'{output_prefix}_basicinfo.csv'
+    clean_path = f'{output_prefix}_clean_basicinfo.csv'
     clean_df_simp.to_csv(clean_path, index=False)
 
     print(f"Simplified final result saved to: {clean_path}")
@@ -443,6 +441,7 @@ def main():
     parser.add_argument('--cb_list_tsv', type=str, default="None", help='Cell barcode to cell type mapping file (TSV)')
     parser.add_argument('--mutation_type', required=False, default="both", choices=["both", "cell_specific", "share"], help='Type of mutation')
     parser.add_argument('--output_file', type=str, required=True, help='Output file path')
+    parser.add_argument('--plot', type=bool, required=False, default=True, help='Whether to plot count of loci during filtering.')
 
 
     args = parser.parse_args()
@@ -456,6 +455,7 @@ def main():
             cb_list_tsv=args.cb_list_tsv,
             mutation_type=args.mutation_type,
             output_file=args.output_file,
+            plot=args.plot,
             save_intermediate=True
         )
         print(f"✅ Processing completed for sample '{args.sample}'.")

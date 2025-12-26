@@ -311,9 +311,9 @@ def run(
     out_path = os.path.dirname(output_bam)
     os.makedirs(out_path, exist_ok=True)
     log_file = os.path.join(out_path, "deduplicate.log")
-    modified_file = os.path.join(out_path, "modified_reads.txt")
-    groups_file_final = os.path.join(out_path, "duplicate_groups.txt")
-    summary_file_final = os.path.join(out_path, "summary.tsv")
+    # modified_file = os.path.join(out_path, "modified_reads.txt")
+    # groups_file_final = os.path.join(out_path, "duplicate_groups.txt")
+    # summary_file_final = os.path.join(out_path, "summary.tsv")
 
     setup_logger(log_file)
     
@@ -391,51 +391,51 @@ def run(
         logger.info(f"Reads to add duplicate mark:         {len(all_add)}")
         logger.info(f"Conflicts resolved:                  {len(conflict)}")
         
-        with open(modified_file, 'w') as f:
-            f.write("# Cleared duplicate marks\n")
-            for name in sorted(all_clear):
-                f.write(f"{name}\n")
-            f.write("\n# Added duplicate marks\n")
-            for name in sorted(all_add):
-                f.write(f"{name}\n")
-        logger.info(f"Modified reads list saved to: {modified_file}")
+        # with open(modified_file, 'w') as f:
+        #     f.write("# Cleared duplicate marks\n")
+        #     for name in sorted(all_clear):
+        #         f.write(f"{name}\n")
+        #     f.write("\n# Added duplicate marks\n")
+        #     for name in sorted(all_add):
+        #         f.write(f"{name}\n")
+        # logger.info(f"Modified reads list saved to: {modified_file}")
         
-        with open(groups_file_final, 'w') as final_out:
-            group_id = 1
-            for chrom in sorted(temp_group_files.keys()):
-                entry = temp_group_files[chrom]
-                if not entry.get('groups'):
-                    continue
-                try:
-                    with open(entry['groups'], 'r') as f:
-                        for line in f:
-                            if line.startswith("--- Group"):
-                                final_out.write(f"--- Group {group_id} {line.split('--- Group')[1]}")
-                                group_id += 1
-                            else:
-                                final_out.write(line)
-                except Exception as e:
-                    logger.error(f"Failed to read groups file: {e}")
-        logger.info(f"✅ Merged duplicate groups saved to: {groups_file_final}")
+        # with open(groups_file_final, 'w') as final_out:
+        #     group_id = 1
+        #     for chrom in sorted(temp_group_files.keys()):
+        #         entry = temp_group_files[chrom]
+        #         if not entry.get('groups'):
+        #             continue
+        #         try:
+        #             with open(entry['groups'], 'r') as f:
+        #                 for line in f:
+        #                     if line.startswith("--- Group"):
+        #                         final_out.write(f"--- Group {group_id} {line.split('--- Group')[1]}")
+        #                         group_id += 1
+        #                     else:
+        #                         final_out.write(line)
+        #         except Exception as e:
+        #             logger.error(f"Failed to read groups file: {e}")
+        # logger.info(f"✅ Merged duplicate groups saved to: {groups_file_final}")
 
 
-        with open(summary_file_final, 'w') as final_sf:
-            header_written = False
-            for chrom in sorted(temp_group_files.keys()):
-                entry = temp_group_files[chrom]
-                if not entry.get('summary'):
-                    continue
-                try:
-                    with open(entry['summary'], 'r') as f:
-                        lines = f.readlines()
-                        if not header_written:
-                            final_sf.writelines(lines)
-                            header_written = True
-                        else:
-                            final_sf.writelines(lines[1:])
-                except Exception as e:
-                    logger.error(f"Failed to read summary file: {e}")
-        logger.info(f"✅ Merged summary saved to: {summary_file_final}")
+        # with open(summary_file_final, 'w') as final_sf:
+        #     header_written = False
+        #     for chrom in sorted(temp_group_files.keys()):
+        #         entry = temp_group_files[chrom]
+        #         if not entry.get('summary'):
+        #             continue
+        #         try:
+        #             with open(entry['summary'], 'r') as f:
+        #                 lines = f.readlines()
+        #                 if not header_written:
+        #                     final_sf.writelines(lines)
+        #                     header_written = True
+        #                 else:
+        #                     final_sf.writelines(lines[1:])
+        #         except Exception as e:
+        #             logger.error(f"Failed to read summary file: {e}")
+        # logger.info(f"✅ Merged summary saved to: {summary_file_final}")
 
 
         merged_bam_path = output_bam + ".merged.tmp.bam" 
