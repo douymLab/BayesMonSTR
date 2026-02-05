@@ -361,15 +361,14 @@ def run_cell_level_filter(
     input_csv: str,
     sample_name: str,
     filters_json: str,
-    output_file: str,
+    output_prefix: str,
     cb_list_tsv: str = "None",
     mutation_type: str = "both",
     plot: bool = True,
     save_intermediate: bool = True
     
 ) -> pd.DataFrame:
-    output_prefix=Path(output_file).with_suffix('')
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    os.makedirs(os.path.dirname(output_prefix), exist_ok=True)
 
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input file not found: {input_csv}")
@@ -412,7 +411,7 @@ def run_cell_level_filter(
     if save_intermediate:
         df_processed.to_csv(f'{output_prefix}_all.csv', index=False)
         clean_df.to_csv(f'{output_prefix}_clean.csv', index=False)
-        print(f"Filtering completed. Final result saved to: {output_file}")        
+        print(f"Filtering completed. Final result saved to: {output_prefix}_clean.csv")        
 
     basic_cols = ['chrom','reference_start_coordinate_1_based_include','reference_end_coordinate_1_based_include',
                 'mut_source_seq','mut_target_seq','GT','MGT','alleles_mut_type',
@@ -440,7 +439,7 @@ def main():
     parser.add_argument('--filters_json', type=str, required=True, help='JSON file containing filter rules')
     parser.add_argument('--cb_list_tsv', type=str, default="None", help='Cell barcode to cell type mapping file (TSV)')
     parser.add_argument('--mutation_type', required=False, default="both", choices=["both", "cell_specific", "share"], help='Type of mutation')
-    parser.add_argument('--output_file', type=str, required=True, help='Output file path')
+    parser.add_argument('--output_prefix', type=str, required=True, help='Prefix of output files')
     parser.add_argument('--plot', type=bool, required=False, default=True, help='Whether to plot count of loci during filtering.')
 
 
@@ -454,7 +453,7 @@ def main():
             filters_json=args.filters_json,
             cb_list_tsv=args.cb_list_tsv,
             mutation_type=args.mutation_type,
-            output_file=args.output_file,
+            output_prefix=args.output_prefix,
             plot=args.plot,
             save_intermediate=True
         )

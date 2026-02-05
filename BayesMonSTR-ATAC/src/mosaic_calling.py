@@ -348,7 +348,7 @@ def mosaic_fraction_estimate_prepare(parsed_options):
     os.system("mkdir -p " + result_dir)
     bed_name = parsed_options.bed_panel.split("/")[-1].split(".")[0]
     if parsed_options.chrom:
-        uid = f"{bed_name}_{parsed_options.chrom}_{parsed_options.start}_{parsed_options.end}"
+        uid = f"{parsed_options.chrom}_{parsed_options.start}_{parsed_options.end}"
     else:
         uid = bed_name
     fail_file = (

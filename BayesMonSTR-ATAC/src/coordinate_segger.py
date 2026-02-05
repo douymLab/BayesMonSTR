@@ -939,7 +939,7 @@ class CoordinateSegRead:
         #             f" {MAX_ANCHOR_INDEL_BP} in read: {read.query_name} \n"
         #         )
         if GLOBAL_FOR_STR_AND_FLANKING:
-            if self.STR_flanking_length <= 0:  # TODO: DEBUG 可能等于零，因为存在大片段的 deletions, 目前如果存在大片段的 deletion 导致 STR allele 检测不到，这样的 reads 会直接被我丢弃掉，Don't debug now
+            if self.STR_flanking_length is None or self.STR_flanking_length <= 0:  # TODO: DEBUG 可能等于零，因为存在大片段的 deletions, 目前如果存在大片段的 deletion 导致 STR allele 检测不到，这样的 reads 会直接被我丢弃掉，Don't debug now
                 self.is_usable = False
                 self.unusable_reason = "SegmentResultFail"
                 if _DEBUG is True:
@@ -992,7 +992,7 @@ class CoordinateSegRead:
                         print(self.right_flanking_error_rate)
                     pass
         else:
-            if self.STR_length <= 0:
+            if self.STR_length is None or self.STR_length <= 0:
                 self.is_usable = False
                 self.unusable_reason = "SegmentResultFail"
                 if _DEBUG is True:

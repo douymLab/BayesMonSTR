@@ -39,13 +39,13 @@
     "column": "mosaic_popAF",
     "instruction": "Estimated population allele frequency for mosaic events, ranging from 0 to 1. Lower values indicate rarer variants, consistent with somatic mosaicism; high values may suggest common polymorphisms.",
     "operator": "<=",
-    "threshold": 0.3
+    "threshold": 0.1
   },
   {
     "column": "recurrent_fraction",
     "instruction": "Fraction of samples or cells where the same mutation recurs across individuals or loci, ranging from 0 to 1. Lower values reduce risk of batch effects or hypermutable site bias.",
     "operator": "<=",
-    "threshold": 0.3
+    "threshold": 0.1
   },
   {
     "column": "uncallable_frac",

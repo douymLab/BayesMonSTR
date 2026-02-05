@@ -25,25 +25,27 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
          pop_info, recurrent_info, mappability, metadata, chrom=None, start=0, end=1000000000, 
          output_dir="./04filter", filters_json=None,
          mis_or_indel="both", mode="all", mutation_type="both",keep_temp=True,plot=True,
-         p=0.5, m=0, u=0.8, l=1e-8, d=1, ms=50, pgi=0.3, r=0.3, cf=0):
+         p=0, m=0, u=0.8, l=1e-8, d=1, ms=50, pgi=0.3, r=0.3, cf=0):
     
     if filters_json is None:
         filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
     if chrom is not None:
         output1 = f"{output_dir}/tmp_{chrom}_{start}_{end}/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.bed"
+        output1_gz = f"{output_dir}/tmp_{chrom}_{start}_{end}/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}_sorted.bed.gz"
         output2 = f"{output_dir}/tmp_{chrom}_{start}_{end}/02extract_features/{sample}/{sample}_{chrom}_{start}_{end}.csv"
-        input_bed_gz = f"{output_dir}/tmp_{chrom}_{start}_{end}/01initial_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}_sorted.bed.gz"
         output3 = f"{output_dir}/tmp_{chrom}_{start}_{end}/03final_hard_filter/{sample}/{sample}_{chrom}_{start}_{end}.txt"
-        output4 = f"{output_dir}/{sample}/{sample}_{chrom}_{start}_{end}.csv"
+        output4 = f"{output_dir}/{sample}/{sample}_{chrom}_{start}_{end}_clean.csv"
+        output4_prefix = f"{output_dir}/{sample}/{sample}_{chrom}_{start}_{end}"
         tmp_dir = f"{output_dir}/tmp_{chrom}_{start}_{end}"
     else:
         output1 = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}.bed"
+        output1_gz = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_sorted.bed.gz"
         output2 = f"{output_dir}/tmp/02extract_features/{sample}/{sample}.csv"
-        input_bed_gz = f"{output_dir}/tmp/01initial_hard_filter/{sample}/{sample}_sorted.bed.gz"
         output3 = f"{output_dir}/tmp/03final_hard_filter/{sample}/{sample}.txt"
-        output4 = f"{output_dir}/{sample}/{sample}.csv"
+        output4 = f"{output_dir}/{sample}/{sample}_clean.csv"
+        output4_prefix = f"{output_dir}/{sample}/{sample}"
         tmp_dir = f"{output_dir}/tmp"
-
+    
     # Step 1: Initial Hard Filter
     if file_exists_and_not_empty(output1):
         print(f"{output1} already exists.", file=sys.stderr)
@@ -60,6 +62,14 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         )
         print("initial_hard_filter DONE.", file=sys.stderr)
 
+    columns = ["chrom", "STRSTART", "STREND", "MOTIF_length", "PERIOD", "str_id", "MOTIF", "GT", "MGT", "MP", "CMP", "variant_type", "frame", "mosaic_fraction", "perfect_ref_str", "depth", "filtered_depth", "filtered_depth_category", "EAF", "observed_mosaic_allele_vaf_single_locus", "NSTUTTER", "DSTUTTER", "NFSTUTTER", "DFSTUTTER", "HVAF", "PS", "PP", "PEAF", "MLEPEAF", "MBP", "PHA", "PPP", "PODR", "PODHR", "PMAP", "PMLEEH", "PMLEEHR", "PMLEDR", "PFAH", "MAPLR", "MAPLRTP", "MAPLRS", "MAPLRTPS", "POMDR", "PSOMDR", "PGOMDR", "PSMMDR", "PGMMDR", "PMMDR", "NHSNPN", "NHSNPINDELN", "mle_mosaic_allele_vaf_two_loci", "observed_mosaic_allele_vaf_two_loci", "GIOAF", "GIMLEAF", "GIUAF", "PRHN", "PMB", "POB", "PGHAF", "PMHAF", "PH3AF", "PGD", "PSD", "PMD", "GI", "Filter", "AAD", "sample_name", "GTMGT", "uncallable_num", "uncallable_frac", "recurrent_num", "recurrent_fraction", "sample_num", "germ_popAF", "source_popAF", "mosaic_popAF", "muttype", "germ_allele", "source_allele", "mosaic_allele", "germ_allele_seq", "source_allele_seq", "mosaic_allele_seq", "external_germ_popAF", "external_source_popAF", "external_mosaic_popAF", "allele_length_dp", "ref_allele_length_padding_flanking", "ALLELE_BARCODE_UMI"]
+    # candidate = pd.read_csv(output1, sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
+    # fail = pd.read_csv(output1.replace(".bed", "_fail.bed"), sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
+    candidate = pd.read_csv(output1, sep="\t", names=columns) 
+    fail = pd.read_csv(output1.replace(".bed", "_fail.bed"), sep="\t", names=columns + ["fail_type"]) 
+    all = pd.concat([candidate, fail], axis=0)
+    ensure_dir(output4)
+    all.to_csv(f"{output4_prefix}_raw.bed",index=False)
 
     # Step 2: Extract Features
     if file_exists_and_not_empty(output2):
@@ -70,7 +80,7 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         run_extract_features(
             metadata=metadata,
             reference_genome=reference_genome,
-            bed_panel=input_bed_gz,
+            bed_panel=output1_gz,
             output_dir=f"{tmp_dir}/02extract_features/{sample}",
             sample_name=sample,
             variant_info=vcf,
@@ -116,21 +126,16 @@ def run(sample, reference_genome, vcf, stutter_model, cell_barcode,
         print(f"{output4} already exists.", file=sys.stderr)
     elif file_exists_and_not_empty(output3):
         print("Running cell_level_filter...", file=sys.stderr)
-        ensure_dir(output4)
         run_cell_level_filter(
             input_csv=output3,
             sample_name=sample,
             cb_list_tsv=cell_barcode,
             filters_json=filters_json, 
             mutation_type=mutation_type,
-            output_file=output4,
+            output_prefix=output4_prefix,
             plot=plot
         )
         print("Cell level filter DONE.", file=sys.stderr)
-        candidate = pd.read_csv(output1, sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
-        fail = pd.read_csv(output1.replace(".bed", "_fail.bed"), sep="\t", usecols=[0, 1, 2, 5, 90], names=['chr','STRSTART','STREND','str_id','ALLELE_BARCODE_UMI']) 
-        all = pd.concat([candidate, fail], axis=0)
-        all.to_csv(output4.replace(".csv", "_raw.bed"),index=False)
     else:
         print(f"Warning: No loci of {sample} in {chrom}:{start}-{end} passed the filter.", file=sys.stderr)
 

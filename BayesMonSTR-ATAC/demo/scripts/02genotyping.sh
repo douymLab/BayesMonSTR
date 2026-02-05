@@ -11,10 +11,10 @@ bayesmonstr-atac genotyping \
     --end 43243695 \
 
 cd ./02genotyping/results
-bgzip hg38_chr6_43243669_43243695_mosaic_calling.vcf
-tabix -p vcf -f hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
-bcftools sort -Oz -o hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz hg38_chr6_43243669_43243695_mosaic_calling.vcf.gz
-tabix -p vcf -f hg38_chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz
+bgzip chr6_43243669_43243695_mosaic_calling.vcf
+tabix -p vcf -f chr6_43243669_43243695_mosaic_calling.vcf.gz
+bcftools sort -Oz -o chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz chr6_43243669_43243695_mosaic_calling.vcf.gz
+tabix -p vcf -f chr6_43243669_43243695_mosaic_calling.sorted.vcf.gz
 
 first_file=true
 > "mosaic_fraction_estimation_results.vcf"

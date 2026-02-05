@@ -6077,9 +6077,9 @@ def features_extract_prepare(parsed_options):
         add_chr_character = False
         remove_chr_character = False
     if "chr" in fasta_chromosome_name:
-        all_chroms_list = ["chr" + str(i) for i in range(1, 23)]
+        all_chroms_list = ["chr" + str(i) for i in range(1, 23)] + ["chrX", "chrY"]
     else:
-        all_chroms_list = [str(i) for i in range(1, 23)]
+        all_chroms_list = [str(i) for i in range(1, 23)] + ["X", "Y"]
     pysam_fasta = pysam.FastaFile(ref_file)
     all_samples_median_depth_dict = {}
     all_samples_point_depth_dict = {}

@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import json
-
+import warnings
 
 def merge_csv_files(folder_path, output_file=None, add_filename=False, recursive=False, file_suffix='.csv'):
     df_list = []
@@ -14,7 +14,7 @@ def merge_csv_files(folder_path, output_file=None, add_filename=False, recursive
 
     for root, _, files in files_iter:
         for filename in files:
-            if filename.endswith(file_suffix) and not filename.startswith('.'):  # 忽略隐藏文件
+            if filename.endswith(file_suffix) and not filename.startswith('.'):
                 file_path = os.path.join(root, filename)
                 try:
                     df = pd.read_csv(file_path)
@@ -267,7 +267,7 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
         df_processed = merge_csv_files(input_dir, output_file=None, recursive=True, file_suffix='_all.csv')
         df_processed.to_csv(all_path, index=False)
         print(f"Result of all loci saved to: {all_path}")
-
+    
     if filters_json is None:
         filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
     with open(filters_json, 'r', encoding='utf-8') as f:
@@ -291,21 +291,23 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
     basic_cols_name = ['chr','start','end','ref','alt',
                 'germline genotype','mosaic genotype','mutation type',
                 'id','sample','mutant cell count','cell barcode','cell type',
-                'depth','mosaic depth','VAF','posterior']   
-    clean_df_simp = clean_df[basic_cols]
-    clean_df_simp.columns = basic_cols_name
-    clean_df_simp.to_csv(f'{output_prefix}_clean_basicinfo.csv', index=False)
-    print(f"Simplified final result saved to: {output_prefix}_clean_basicinfo.csv")
+                'depth','mosaic depth','VAF','posterior']
+    if not clean_df.empty: 
+        clean_df_simp = clean_df[basic_cols]
+        clean_df_simp.columns = basic_cols_name
+        clean_df_simp.to_csv(f'{output_prefix}_clean_basicinfo.csv', index=False)
+        print(f"Simplified final result saved to: {output_prefix}_clean_basicinfo.csv")
 
 
     df_all = merge_csv_files(input_dir, add_filename=True, recursive=True, file_suffix='_raw.bed')
+    df_all.to_csv(f"{output_prefix}_raw.csv",index=False)
     panel_38_final = pd.read_csv(f"/storage/douyanmeiLab/wangchunyi/reference/TR_catalog/HipSTR-references/human/hg38.hipstr_reference_removeslash_lt150_simp_annovar_gex_maf_gc_rank_zscore_hmm_gex2_addbasicinfo.csv")
     df_all = pd.merge(df_all, panel_38_final, left_on='str_id', right_on='id', how='left')
 
     final_df = process_allele_df(df_all)
     final_df_group = final_df.groupby(['sample','barcode']).agg(
-        count=('length', 'size'),      # 每组有多少行
-        length_sum=('length', 'sum')   # length 列的总和
+        count=('length', 'size'),
+        length_sum=('length', 'sum')
     ).reset_index()
     final_df_group.to_csv(f"{output_prefix}_matrix.csv",index=False)
     print(f"Matirx saved to: {output_prefix}_matrix.csv")
@@ -313,8 +315,8 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
     df_regulatory = df_all[df_all['max_freq_anno'].isin(['TssA','TssBiv','EnhA1','EnhA2'])]
     final_df_regulatory = process_allele_df(df_regulatory)
     final_df_regulatory_group = final_df_regulatory.groupby(['sample','barcode']).agg(
-        count=('length', 'size'),      # 每组有多少行
-        length_sum=('length', 'sum')   # length 列的总和
+        count=('length', 'size'),
+        length_sum=('length', 'sum')
     ).reset_index()
     final_df_regulatory_group.to_csv(f"{output_prefix}_matrix_reg.csv",index=False)
     print(f"Matrix of regulatory loci saved to: {output_prefix}_matrix_reg.csv")

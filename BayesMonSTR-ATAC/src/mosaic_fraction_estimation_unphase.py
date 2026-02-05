@@ -191,7 +191,7 @@ HAP_IDENTIFY_POA = True
 ALLELE_DEPTH_CUTOFF = 1
 MAX_ALLELE_CLUSTER_NUM = 5
 MAX_ALLOWABLE_ALLELE_NUM_BEFORE_FEATURE = 20
-MAX_LOCI_DEPTH = 1000
+MAX_LOCI_DEPTH = 10000
 MIS_NUM_TOLERENT = 100  # HACK: Change from 5 to 100 to tolerent more random recurrent mismatches # HACK: Change from 2 to 5 for filtering the hap with more random recurrent mismatches, observed from complex mutation types with multiple sequencing errors are called out #
 STRAND_BIAS_DEPTH_CUTOFF = 5  # 0.03125 小概率事件,(1/2)^5
 OBSERVE_SF_CUTOFF = 0.99
@@ -300,6 +300,7 @@ class MosaicFractionPerSampleEstimator:
         self.reads_list = reads_list
         self.reads_accuracy_list = reads_accuracy_list
         self.reads_number = len(self.reads_list)
+        # print(self.reads_number)
         self.pysam_reads_list = pysam_reads_list
         self.alleles_STR_length_list = alleles_STR_length_list
         self.all_alleles_list_for_gt_output = all_alleles_list_for_gt_output

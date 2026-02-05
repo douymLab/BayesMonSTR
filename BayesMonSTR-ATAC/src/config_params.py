@@ -178,7 +178,7 @@ ALLELE_EXTRACT = {
     "AF_DIFFERENCE_CUTOFF": 10,  # 没用到
     "FLANKING_INDEL_CHECK_RANGE": 15,
     "SegMethods": "Coordinates",
-    "PCRLibrary": "PCR",  # PCR-free
+    "PCRLibrary": "PCR",  # PCR
     "PADDING_BPS": 5,  # revise_padding
     "USE_MIS_FRAC": True,
     "MIS_FRAC_CUTOFF": 0.1,
