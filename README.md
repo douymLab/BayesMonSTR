@@ -12,11 +12,11 @@ A tool for mosaic STR mutation detection from **single-cell sequencing data**.
 
 See [BayesMonSTR](BayesMonSTR/README.md) for details.
 
-## BayesMonSTR-Bulk
+## BayesMonSTR-BulkMonSTR
 
 A tool for mosaic STR mutation detection from **bulk sequencing data**.
 
-See [BayesMonSTR-Bulk](BayesMonSTR-Bulk/README.md) for details.
+See [BayesMonSTR-BulkMonSTR](BayesMonSTR-BulkMonSTR/README.md) for details.
 
 ## BayesMonSTR-ATAC
 
