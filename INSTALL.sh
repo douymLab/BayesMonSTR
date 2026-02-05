@@ -4,11 +4,11 @@ cd BayesMonSTR/
 pip install python/
 echo "BayesMonSTR installed"
 
-# install BayesMonSTR-Bulk
-echo "installing BayesMonSTR-Bulk..."
+# install BayesMonSTR-BulkMonSTR
+echo "installing BayesMonSTR-BulkMonSTR..."
 cd ../
-conda env create -f BayesMonSTR-Bulk/environment.yml
-echo "BayesMonSTR-Bulk installed"
+conda env create -f BayesMonSTR-BulkMonSTR/environment.yml
+echo "BayesMonSTR-BulkMonSTR installed"
 
 # install BayesMonSTR-ATAC
 echo "installing BayesMonSTR-ATAC..."
