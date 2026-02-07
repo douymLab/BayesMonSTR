@@ -1,6 +1,6 @@
 <h1 align="center">BayesMonSTR</h1>
 
-<p align="center">A tool for mosaic STR mutation detection from single-cell data.</p>
+<p align="center">A tool for mosaic STR mutation detection from single-cell sequencing data.</p>
 
 ## Table of contents
 
