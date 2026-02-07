@@ -190,10 +190,6 @@ By default, BayesMonSTR automatically searches for germline hSNPs. However, to s
 
 Path to the phased VCF file containing germline hSNPs for single-cell data. This is used only for MDA-amplified samples; ignore this argument when using PTA-amplified or single-cell-derived colony data.
 
-#### -a AB_INFO
-
-Path to allele frequency (AF) values regressed using Gaussian process regression for MDA-amplified samples. This argument should be ignored when using PTA-amplified or single-cell-derived colony data.
-
 ## Demo
 
 A demo for running BayesMonSTR is provided in the `demo/` directory, which includes sample input files. Users can refer to this example for the expected input format.
