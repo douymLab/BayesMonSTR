@@ -2,6 +2,8 @@
 
 A toolkit for mosaic STR mutation detection and visualization.
 
+![Framework](framework.png)
+
 ## Install
 
 You can choose to run ./INSTALL.sh to install all four programs simultaneously, or install only the required program individually by following the instructions in each respective subdirectory.
@@ -142,3 +144,14 @@ docker run --rm \
 
 Because of permission restrictions in the Docker image, the warning
 `[bgzip] Failed to set file specifications.` may occur, but since it does not affect the result, it can be safely ignored.
+
+## Contact
+If you encounter problems, please open a [github issue](https://github.com/douymLab/BayesMonSTR/issues) or contact douyanmei@westlake.edu.cn.
+
+## Contact
+
+Enjoying **BayesMonSTR**? Please support our work by citing our paper:
+
+[Link to Paper](https://doi.org/10.64898/2026.02.04.703915)
+
+Your citations help us continue developing tools for the life science community!

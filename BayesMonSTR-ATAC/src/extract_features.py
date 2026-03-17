@@ -831,16 +831,27 @@ def get_all_read_nearbysnp_assignment(pysam_bam, chrom, pos):
 
 
 def get_chrom_depth(chrom, pysam_ref, pysam_bam):
+    if (chrom not in pysam_ref.references) or (chrom not in pysam_bam.references):
+        return [[0] for _ in range(DEPTH_POINT)]
+
     contig_length = pysam_ref.get_reference_length(chrom)
     average_window_length = int(contig_length / (DEPTH_POINT + 1))
+    if average_window_length <= 0:
+        return [[0] for _ in range(DEPTH_POINT)]
+
     depth_list = []
-    for pos in range(
-        average_window_length, contig_length, average_window_length
-    ):
-        pos_depth = np.array(
-            pysam_bam.count_coverage(chrom, pos, pos + 1, quality_threshold=0)
-        ).sum(axis=0)[0]
-        depth_list.append(pos_depth)
+    for pos in range(average_window_length, contig_length, average_window_length):
+        try:
+            pos_depth = np.array(
+                pysam_bam.count_coverage(chrom, pos, pos + 1, quality_threshold=0)
+            ).sum(axis=0)[0]
+        except ValueError:
+            pos_depth = 0
+        depth_list.append([int(pos_depth)])
+
+    if len(depth_list) < DEPTH_POINT:
+        depth_list.extend([[0] for _ in range(DEPTH_POINT - len(depth_list))])
+
     return depth_list
 
 
