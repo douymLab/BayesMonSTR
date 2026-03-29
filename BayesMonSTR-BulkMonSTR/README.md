@@ -1,7 +1,6 @@
 # BayesMonSTR-BulkMonSTR
 
-**BayesMonSTR-BulkMonSTR** is a computational tool designed for detecting **mosaic mutations** in **short tandem repeat (STR) regions** without matched controls, and is capable of detecting **short contractions, expansions, and interruption mosaic mutations** within repeat regions.
-
+**BayesMonSTR-BulkMonSTR** is a computational framework for detecting mosaic short tandem repeat (STR) mutations from bulk sequencing data. It identifies both indel and mismatch mutations within STR regions and supports both control-independent and case-control study designs.
 
 # Table Contents
 
@@ -437,7 +436,7 @@ If you encounter problems, please open a [github issue](https://github.com/douym
 ## Citation
 If you use BayesMonSTR-BulkMonSTR in your research, please cite our paper:
 
-> [Authors], *BayesMonSTR-BulkMonSTR: accurate detection of mosaic mutations at short tandem repeats*, Journal, 2025.
+> [Authors], *Accurate detection of mosaic mutations at short tandem repeats from bulk sequencing data*, Journal, 2026.
 
 
 ---
