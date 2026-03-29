@@ -760,17 +760,11 @@ def mutation_decision(
                 filter6 = "PASS"
                 filter7 = "PASS"
         unknown_hap_read_number = round(unknown_hap_read_fraction*case_dp)
-        # res = binomtest(
-        #     unknown_hap_read_number,
-        #     n=case_dp,
-        #     p=obs_mut_vaf_new_case_pair,
-        #     alternative="less",
-        # )
         res = binomtest(
-            round(obs_mut_vaf_new_case_pair*case_dp),
+            unknown_hap_read_number,
             n=case_dp,
-            p=unknown_hap_read_fraction,
-            alternative="greater",
+            p=obs_mut_vaf_new_case_pair,
+            alternative="less",
         )
         pvalue = res.pvalue
         if ((pvalue < 0.05) or (unknown_hap_read_number == 0)):

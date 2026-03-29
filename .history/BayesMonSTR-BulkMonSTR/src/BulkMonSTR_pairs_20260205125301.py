@@ -652,18 +652,11 @@ def case_pair_mosaic_calling(row, pysam_fasta):
     )
 
     # Apply filters based on VAF and other conditions
-    # res = binomtest(
-    #     obs_mut_dp_normal,
-    #     n=normal_dp,
-    #     p=obs_mut_vaf_new_case,
-    #     alternative="less",
-    # )
-    case_mut_dp = case_dp*obs_mut_vaf_new_case
     res = binomtest(
-        round(case_mut_dp),
-        n=case_dp,
-        p=obs_mut_vaf_new_normal,
-        alternative="greater",
+        obs_mut_dp_normal,
+        n=normal_dp,
+        p=obs_mut_vaf_new_case,
+        alternative="less",
     )
     pvalue = res.pvalue
     filter1, filter2, filter3, filter4 = apply_filters(
@@ -760,17 +753,11 @@ def mutation_decision(
                 filter6 = "PASS"
                 filter7 = "PASS"
         unknown_hap_read_number = round(unknown_hap_read_fraction*case_dp)
-        # res = binomtest(
-        #     unknown_hap_read_number,
-        #     n=case_dp,
-        #     p=obs_mut_vaf_new_case_pair,
-        #     alternative="less",
-        # )
         res = binomtest(
-            round(obs_mut_vaf_new_case_pair*case_dp),
+            unknown_hap_read_number,
             n=case_dp,
-            p=unknown_hap_read_fraction,
-            alternative="greater",
+            p=obs_mut_vaf_new_case_pair,
+            alternative="less",
         )
         pvalue = res.pvalue
         if ((pvalue < 0.05) or (unknown_hap_read_number == 0)):
