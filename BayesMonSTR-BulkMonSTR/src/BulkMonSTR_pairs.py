@@ -7,7 +7,7 @@ from scipy.stats import binomtest
 import argparse
 import pysam
 
-GIAB = True
+GIAB = False
 ALLELE_EXTRACT = config_params.ALLELE_EXTRACT
 PADDING_BPS = ALLELE_EXTRACT["PADDING_BPS"]  # 5 # 10 # revise_padding
 PAIR_PARAMS = pairmode_params.pair_mode_params_dict
