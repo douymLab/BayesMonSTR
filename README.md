@@ -153,5 +153,6 @@ If you encounter problems, please open a [github issue](https://github.com/douym
 Enjoying **BayesMonSTR**? Please support our work by citing our paper:
 
 [Link to Paper](https://doi.org/10.64898/2026.02.04.703915)
+[Link to Paper (BayesMonSTR-BulkMonSTR)](https://www.biorxiv.org/content/10.64898/2026.03.30.715227v1)
 
 Your citations help us continue developing tools for the life science community!
