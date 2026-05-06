@@ -148,7 +148,7 @@ Because of permission restrictions in the Docker image, the warning
 ## Contact
 If you encounter problems, please open a [github issue](https://github.com/douymLab/BayesMonSTR/issues) or contact douyanmei@westlake.edu.cn.
 
-## Contact
+## Citation
 
 If you use BayesMonSTR in your research, please cite:
 
