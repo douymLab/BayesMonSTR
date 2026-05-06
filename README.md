@@ -150,10 +150,10 @@ If you encounter problems, please open a [github issue](https://github.com/douym
 
 ## Contact
 
-Enjoying **BayesMonSTR**? Please support our work by citing our paper:
+If you use BayesMonSTR in your research, please cite:
 
-[Link to Paper](https://doi.org/10.64898/2026.02.04.703915)
+[Unravelling genome-wide mosaic microsatellite mutations at single-cell resolution](https://www.biorxiv.org/content/10.64898/2026.02.04.703915v2)
 
-[Link to Paper (BayesMonSTR-BulkMonSTR)](https://www.biorxiv.org/content/10.64898/2026.03.30.715227v1)
+If you use BayesMonSTR-BulkMonSTR in your research, please cite:
 
-Your citations help us continue developing tools for the life science community!
+[Accurate detection of mosaic mutations at short tandem repeats from bulk sequencing data](https://www.biorxiv.org/content/10.64898/2026.03.30.715227v1)
