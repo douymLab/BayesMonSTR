@@ -28,22 +28,23 @@ def determine_muttype2(df):
 
 
 def parse_allele_mosaic(row, CB_list):
-    """Parse ALLELE_BARCODE_UMI to extract mosaic patterns and metrics."""
+    """Parse ALLELE_BARCODE_UMI to extract mosaic patterns and metrics, including mutant and non-mutant barcodes."""
+    import pandas as pd
+
     if row['muttype2'] == 'homhet' or row['muttype2'] == 'hethet':
         key = row['MGT'].split('/')[1]
     elif row['muttype2'] == 'hethom':
         key = row['GT'].split('/')[1]
     else:
-        return pd.Series([None] * 21, index=[
+        return pd.Series([None] * 23, index=[
             'rc_total', 'barcode_rc_total_str', 'barcode_count_total', 'celltype_count_total',
-            'rc_mosaic', 'vaf', 'barcode_rc_mosaic_str', 'barcode_count_mosaic', 'max_mosaic_barcode_rc',
-            'max_mosaic_barcode_rc_total', 'max_mosaic_barcode_vaf', 'max_mosaic_barcode_rc_prop',
-            'celltype_count_mosaic', 'na_celltype_rc_mosaic', 'max_celltype_rc_mosaic',
-            'max_celltype_mosaic', 'mosaic_str',
+            'rc_mosaic', 'vaf', 'barcode_rc_mosaic_str', 'barcode_count_mosaic',
+            'max_mosaic_barcode_rc', 'max_mosaic_barcode_rc_total', 'max_mosaic_barcode_vaf',
+            'max_mosaic_barcode_rc_prop', 'celltype_count_mosaic', 'na_celltype_rc_mosaic',
+            'max_celltype_rc_mosaic', 'max_celltype_mosaic', 'mosaic_str',
             'max_vaf_mosaic_barcode', 'max_vaf_mosaic_barcode_rc', 'max_vaf_mosaic_barcode_vaf',
-            'celltype_mosaic_vs_total'
+            'celltype_mosaic_vs_total', 'mutant_barcodes', 'nonmutant_barcodes'
         ])
-
 
     records = row['ALLELE_BARCODE_UMI'].split(";")
     result = []
@@ -57,10 +58,16 @@ def parse_allele_mosaic(row, CB_list):
             if len(sub_parts) == 2:
                 result.append([allele_key, sub_parts[0], sub_parts[1]])
 
-
     if not result:
-        return pd.Series([None] * 21, index=[...])  # same as above
-
+        return pd.Series([None] * 23, index=[
+            'rc_total', 'barcode_rc_total_str', 'barcode_count_total', 'celltype_count_total',
+            'rc_mosaic', 'vaf', 'barcode_rc_mosaic_str', 'barcode_count_mosaic',
+            'max_mosaic_barcode_rc', 'max_mosaic_barcode_rc_total', 'max_mosaic_barcode_vaf',
+            'max_mosaic_barcode_rc_prop', 'celltype_count_mosaic', 'na_celltype_rc_mosaic',
+            'max_celltype_rc_mosaic', 'max_celltype_mosaic', 'mosaic_str',
+            'max_vaf_mosaic_barcode', 'max_vaf_mosaic_barcode_rc', 'max_vaf_mosaic_barcode_vaf',
+            'celltype_mosaic_vs_total', 'mutant_barcodes', 'nonmutant_barcodes'
+        ])
 
     result_df = pd.DataFrame(result, columns=["Allele_index", "Read_name", "Barcode"])
     result_df["Read_name"] = result_df["Read_name"].str.replace("-", ":")
@@ -70,11 +77,22 @@ def parse_allele_mosaic(row, CB_list):
     else:
         result_df = pd.merge(result_df, CB_list, on='Barcode', how='left')
 
-
     result_df_mosaic = result_df[result_df["Allele_index"] == key]
-    if result_df_mosaic.empty:
-        return pd.Series([None] * 21, index=[...])
 
+    # mutant and non-mutant barcodes
+    mutant_barcodes = ','.join(result_df_mosaic['Barcode'].unique()) if not result_df_mosaic.empty else ''
+    nonmutant_barcodes = ','.join(result_df[result_df["Allele_index"] != key]['Barcode'].unique()) if not result_df[result_df["Allele_index"] != key].empty else ''
+
+    if result_df_mosaic.empty:
+        return pd.Series([None] * 23, index=[
+            'rc_total', 'barcode_rc_total_str', 'barcode_count_total', 'celltype_count_total',
+            'rc_mosaic', 'vaf', 'barcode_rc_mosaic_str', 'barcode_count_mosaic',
+            'max_mosaic_barcode_rc', 'max_mosaic_barcode_rc_total', 'max_mosaic_barcode_vaf',
+            'max_mosaic_barcode_rc_prop', 'celltype_count_mosaic', 'na_celltype_rc_mosaic',
+            'max_celltype_rc_mosaic', 'max_celltype_mosaic', 'mosaic_str',
+            'max_vaf_mosaic_barcode', 'max_vaf_mosaic_barcode_rc', 'max_vaf_mosaic_barcode_vaf',
+            'celltype_mosaic_vs_total', 'mutant_barcodes', 'nonmutant_barcodes'
+        ])
 
     # Total counts
     rc_total = len(result_df)
@@ -83,14 +101,12 @@ def parse_allele_mosaic(row, CB_list):
     barcode_count_total = result_df['Barcode'].nunique()
     celltype_count_total = result_df['CellType'].nunique()
 
-
     # Mosaic counts
     rc_mosaic = len(result_df_mosaic)
     vaf = round(rc_mosaic / rc_total, 4)
     barcode_rc_mosaic = result_df_mosaic['Barcode'].value_counts()
     barcode_rc_mosaic_str = ';'.join([f"{bc}:{ct}" for bc, ct in barcode_rc_mosaic.items()])
     barcode_count_mosaic = result_df_mosaic['Barcode'].nunique()
-
 
     if not barcode_rc_mosaic.empty:
         max_barcode_mosaic = barcode_rc_mosaic.index[0]
@@ -102,11 +118,9 @@ def parse_allele_mosaic(row, CB_list):
         max_mosaic_barcode_rc = max_mosaic_barcode_rc_total = max_mosaic_barcode_vaf = max_mosaic_barcode_rc_prop = None
         max_barcode_mosaic = None
 
-
     celltype_rc_mosaic = result_df_mosaic['CellType'].value_counts()
     na_celltype_rc_mosaic = result_df_mosaic['CellType'].isna().sum() + (result_df_mosaic['CellType'] == 'NA').sum()
     celltype_count_mosaic = result_df_mosaic['CellType'].nunique()
-
 
     if not celltype_rc_mosaic.empty:
         max_celltype_rc_mosaic = celltype_rc_mosaic.iloc[0]
@@ -114,14 +128,12 @@ def parse_allele_mosaic(row, CB_list):
     else:
         max_celltype_rc_mosaic = max_celltype_mosaic = None
 
-
     # Build mosaic_str
     str_parts = []
     for _, row2 in result_df_mosaic.iterrows():
         ct = row2['CellType'] if pd.notna(row2['CellType']) else 'NA'
         str_parts.append(f"{row2['Read_name']}_{row2['Barcode']}_{ct}")
     mosaic_str = f"{key}|{';'.join(str_parts)}"
-
 
     # Build celltype mosaic vs total
     celltype_str_parts = []
@@ -139,7 +151,6 @@ def parse_allele_mosaic(row, CB_list):
         celltype_str_parts.append(f"{celltype}|{barcode_str}")
     celltype_mosaic_vs_total = ';'.join(celltype_str_parts)
 
-
     # Max VAF barcode
     if all_barcode_ratios:
         best = max(all_barcode_ratios, key=lambda x: x[3])
@@ -149,7 +160,6 @@ def parse_allele_mosaic(row, CB_list):
     else:
         max_vaf_mosaic_barcode = max_vaf_mosaic_barcode_rc = max_vaf_mosaic_barcode_vaf = None
 
-
     return pd.Series([
         rc_total, barcode_rc_total_str, barcode_count_total, celltype_count_total,
         rc_mosaic, vaf, barcode_rc_mosaic_str, barcode_count_mosaic,
@@ -157,7 +167,7 @@ def parse_allele_mosaic(row, CB_list):
         max_mosaic_barcode_rc_prop, celltype_count_mosaic, na_celltype_rc_mosaic,
         max_celltype_rc_mosaic, max_celltype_mosaic, mosaic_str,
         max_vaf_mosaic_barcode, max_vaf_mosaic_barcode_rc, max_vaf_mosaic_barcode_vaf,
-        celltype_mosaic_vs_total
+        celltype_mosaic_vs_total, mutant_barcodes, nonmutant_barcodes
     ], index=[
         'rc_total', 'barcode_rc_total_str', 'barcode_count_total', 'celltype_count_total',
         'rc_mosaic', 'vaf', 'barcode_rc_mosaic_str', 'barcode_count_mosaic',
@@ -165,7 +175,7 @@ def parse_allele_mosaic(row, CB_list):
         'max_mosaic_barcode_rc_prop', 'celltype_count_mosaic', 'na_celltype_rc_mosaic',
         'max_celltype_rc_mosaic', 'max_celltype_mosaic', 'mosaic_str',
         'max_vaf_mosaic_barcode', 'max_vaf_mosaic_barcode_rc', 'max_vaf_mosaic_barcode_vaf',
-        'celltype_mosaic_vs_total'
+        'celltype_mosaic_vs_total', 'mutant_barcodes', 'nonmutant_barcodes'
     ])
 
 

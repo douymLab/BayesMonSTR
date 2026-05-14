@@ -292,7 +292,7 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
                 'germline genotype','mosaic genotype','mutation type',
                 'id','sample','mutant cell count','cell barcode','cell type',
                 'depth','mosaic depth','VAF','posterior']
-    if not clean_df.empty: 
+    if not clean_df.empty:
         clean_df_simp = clean_df[basic_cols]
         clean_df_simp.columns = basic_cols_name
         clean_df_simp.to_csv(f'{output_prefix}_clean_basicinfo.csv', index=False)
