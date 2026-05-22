@@ -83,7 +83,7 @@ def process_data(df, models, individual):
     if len(phase_df) > 0:
         phase_df = phase_df[
             (phase_df["num_mut_cell"] > 0) &
-            (phase_df["mo_posterior"] >= 0.9) &
+            (phase_df["mo_posterior"] >= 0.5) &
             (phase_df["is_germ_hom"] == 1) & # whether germline genotype is reference homozygous
             (phase_df["prediction"] == "mosaic") &
             (phase_df["phase_filter"] == True)
@@ -92,7 +92,7 @@ def process_data(df, models, individual):
     if len(unphase_df) > 0:
         unphase_df = unphase_df[
             (unphase_df["num_mut_cell"] > 0) &
-            (unphase_df["mo_posterior"] >= 0.9) &
+            (unphase_df["mo_posterior"] >= 0.5) &
             (unphase_df["is_germ_hom"] == 1) & # whether germline genotype is reference homozygous
             (unphase_df["prediction"] == "mosaic") &
             (unphase_df["unphase_filter"] == True)
