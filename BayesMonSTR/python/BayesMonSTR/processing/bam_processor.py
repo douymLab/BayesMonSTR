@@ -1708,7 +1708,7 @@ def feat_extract(
                     max(vaf_mut_allele_list) if vaf_mut_allele_list else 0
                 )
                 vaf_mut_sc_min_allele = (
-                    max(vaf_mut_allele_list) if vaf_mut_allele_list else 0
+                    min(vaf_mut_allele_list) if vaf_mut_allele_list else 0
                 )
 
                 vaf_list_count_mut = [
