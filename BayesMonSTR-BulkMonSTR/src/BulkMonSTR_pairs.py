@@ -954,6 +954,17 @@ if __name__ == "__main__":
                       'pvalue_pair'
                       ]] = bulkpre_case.apply(
             lambda row: case_pair_mosaic_calling(row, pysam_fasta), axis=1)
+        bulkpre_case["popAF_mut_new"] = np.select(
+        [
+        bulkpre_case["mutation_allele_seq_pair"] == bulkpre_case["germ_seq"],
+        bulkpre_case["mutation_allele_seq_pair"] == bulkpre_case["source_seq"],
+            bulkpre_case["mutation_allele_seq_pair"] == bulkpre_case["mut_seq"],
+        ],
+        [
+            bulkpre_case["external_germ_popAF"],
+            bulkpre_case["external_source_popAF"],
+            bulkpre_case["external_mosaic_popAF"],
+        ], default=np.nan)
         bulkpre_case[["paired_mode_prediction"]] = bulkpre_case.apply(
             lambda row: mutation_decision(row), axis=1)
         bulkpre_case = bulkpre_case[bulkpre_case["paired_mode_prediction"]
@@ -966,6 +977,12 @@ if __name__ == "__main__":
             int)*bulkpre_case["obs_mut_vaf_new_case_pair"].astype(float)
         bulkpre_case["mutant_dp_pair"] = bulkpre_case["mutant_dp_pair"].apply(
             lambda x: round(x))
+        bulkpre_case["case alt/dp"] = bulkpre_case["mutant_dp_pair"].astype(str) + "/" + bulkpre_case["case_dp_pair"].astype(str)
+        bulkpre_case["normal_mutant_dp_pair"] = bulkpre_case["normal_dp_pair"].astype(
+            int)*bulkpre_case["obs_mut_vaf_new_normal_pair"].astype(float)
+        bulkpre_case["normal_mutant_dp_pair"] = bulkpre_case["normal_mutant_dp_pair"].apply(
+            lambda x: round(x))
+        bulkpre_case["control alt/dp"] = bulkpre_case["normal_mutant_dp_pair"].astype(str) + "/" + bulkpre_case["normal_dp_pair"].astype(str)
         match_selected_col = {
             "mutation_id": "mutation_id",
             "chrom": "chrom",
@@ -983,18 +1000,25 @@ if __name__ == "__main__":
             "case_muttype_pair": "muttype_pair",
             "mutation_base_pairs": "mutation_base_pairs",
             "used_read_num_in_genotyping": "used_read_num_in_genotyping",
+            "case alt/dp": "case alt/dp",
+            "control alt/dp": "control alt/dp",
             "no_norm_len_revise_depth_ratio": "depth_ratio",
             "obs_mut_vaf_new_case_pair": "vaf_obs",
             "mutant_dp_pair": "mutant_dp",
+            "popAF_mut_new": "popAF_mut",
             "inframe_single_step_prob": 'inframe_step_size_prob',
             'inframe_ins_prob': 'inframe_ins_prob',
             'inframe_del_prob': 'inframe_del_prob',
             'outframe_single_step_prob': "outframe_step_size_prob",
             'outframe_ins_prob': 'outframe_ins_prob',
             "outframe_del_prob": "outframe_del_prob",
-            "germ_allele_seq_pair": "germ_seq_pair",
-            "source_allele_seq_pair": "source_seq_pair",
-            "mutation_allele_seq_pair": "mut_seq_pair"
+            'mutated_reference_seq_pair': "mutated_reference_seq",
+            'relative_to_reference_germ_seq_pair': "relative_to_reference_germ_seq",
+            'relative_to_reference_source_seq_pair': "relative_to_reference_source_seq",
+            'relative_to_reference_mut_seq_pair': "relative_to_reference_mut_seq",
+            "germ_allele_seq_pair": "germ_seq",
+            "source_allele_seq_pair": "source_seq",
+            "mutation_allele_seq_pair": "mut_seq"
         }
 
         bulkpre_case_selected = bulkpre_case[match_selected_col.keys()]
