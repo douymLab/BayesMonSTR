@@ -2720,12 +2720,14 @@ def hard_filter_mode(row):
     if (abs(mutation_size) > MUTATION_SIZE_MAX) or (
         abs(mutation_period) > MUTATION_PERIOD_MAX
     ):
-        hard_filter_details = (
-            hard_filter_details
-            + f"(mutation_size>{MUTATION_SIZE_MAX})|(mutation_period>{MUTATION_PERIOD_MAX});"
-        )
-        hard_filter_category.append("BigInDelSize")
-        hard_filter_decision_list.append("BigInDelGermline")
+        pass
+        # HACK: Keep big indel 
+        # hard_filter_details = (
+        #     hard_filter_details
+        #     + f"(mutation_size>{MUTATION_SIZE_MAX})|(mutation_period>{MUTATION_PERIOD_MAX});"
+        # )
+        # hard_filter_category.append("BigInDelSize")
+        # hard_filter_decision_list.append("BigInDelGermline")
     if mosaic_fraction / 2 <= stutter_probs:
         hard_filter_details = hard_filter_details + "stutter_error;"
         hard_filter_category.append("StutterError")
