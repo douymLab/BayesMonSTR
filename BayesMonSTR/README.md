@@ -228,6 +228,23 @@ The final mosaic call set is provided in the `results/*.csv` files. Below is a d
 | phase_filter/unphase_filter | Indicates whether the locus passed filtering (`True` for true loci).                                                             |
 | prediction                  | ML prediction results, (`mosaic` for true loci  )                                                                                |
 
+### Standard-compliant VCF
+
+`str_gt.vcf` carries the model feature columns needed by `mosaic.py`: an extra
+tabular header row follows `#CHROM`, and every record has those feature columns
+appended. Generic VCF readers (`pysam`, `bcftools`) reject that layout, so
+convert the file first:
+
+```shell
+# writes a standard VCF; the original file is left untouched
+python ../scripts/remove_header.py -i str_gt.vcf -o str_gt.standard.vcf
+
+# optionally keep the dropped feature columns in a separate TSV
+python ../scripts/remove_header.py -i str_gt.vcf -o str_gt.standard.vcf -f str_gt.features.tsv
+```
+
+Run `mosaic.py` on the original `str_gt.vcf`, not on the converted file.
+
 ## Docker
 
 BayesMonSTR can be ran with Docker as well.
