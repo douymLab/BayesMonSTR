@@ -339,11 +339,6 @@ Key Columns from Final Predicted Mosaic Mutations Output:
 | `RF_Prediction`       | The prediction made by the random forest model: `Mosaic mutations` or `Artifacts` or `Germline Het`. |
 | `Final Decision`      | The final prediction based on both random forest and hard filter decisions: `Mosaic` or `Heterzygous or Artifacts`. |
 
-
-## Run in batch scripts
-# TODO
-
-
 ## Pipeline optimized for paired-samples mode
 We added a paired-samples mode to BayesMonSTR-BulkMonSTR. With matched normal samples, this mode helps filter out germline variants more effectively, making it easier to detect true somatic STR mutations. It is also more sensitive for low-VAF mutations. In paired-samples mode, the following parameter changes are applied:
 1. Estimation of locus-based stutter model (all samples): unchanged
@@ -414,6 +409,240 @@ python3 ~/BayesMonSTR-BulkMonSTR/src/BulkMonSTR_pairs.py \
 
 ## Pipeline optimized for LCM samples
 # TODO
+
+## Run in batch scripts
+### Snakemake workflow for paired-samples mode
+```text
+snakemake/paired
+```
+
+This workflow is optimized for Slurm clusters. It splits the genome into intervals, submits interval-level jobs, merges the genome-wide outputs, and then runs the paired-samples post-processing step.
+
+#### Workflow overview
+
+The paired Snakemake workflow runs the following steps:
+
+1. Split the genome into `split.chunks` intervals.
+2. Run `mosaic_calling.py` for each interval using all samples in the metadata file.
+3. Compress, index, concatenate, and sort interval VCFs.
+4. Run `extract_pop_infors.py` on the merged VCF.
+5. Run `initial_hard_filter.py` for each sample with paired-mode permissive filtering parameters.
+6. Run `extract_features.py` for each case sample and interval.
+7. Merge feature files and run `bulkmonstr_prediction.py` for each case sample.
+8. Merge case prediction files.
+9. Run `bulkmonstr_pairs.py` for each case-normal pair.
+
+The final paired-mode outputs are written to:
+
+```text
+{project.workdir}/06_paired_mode/{pair}.paired_mode.csv
+```
+
+#### Directory setup
+
+Copy the paired Snakemake workflow to the cluster, for example:
+
+```bash
+mkdir -p /path/to/project/code
+cp -r snakemake/paired /path/to/project/code/
+cd /path/to/project/code/paired
+```
+
+The workflow directory contains:
+
+```text
+Snakefile
+config.yaml
+profiles/slurm/config.yaml
+scripts/
+run_paired.sh
+```
+
+#### Configure `config.yaml`
+
+Before running, edit `config.yaml`.
+
+Minimal required fields:
+
+```yaml
+project:
+  workdir: /path/to/project/BulkMonSTR_paired
+
+bulkmonstr:
+  src: /path/to/BulkMonSTR/src
+  conda_env: BulkMonSTR
+  python: python3
+
+inputs:
+  metadata: /path/to/metadata.csv
+  reference_fasta: /path/to/GRCh38.fa
+  str_bed: /path/to/hg38.hipstr_reference.0based.bed.gz
+  stutter_model: /path/to/stutter_model.bed.gz
+  nearby_snp_vcf: ""
+  mappability_bed: /path/to/hg38_k24_k100_mappability.bed.gz
+  external_population_panel: /path/to/pop_AF_allchr_noXYM_final_sorted.bed.gz
+  bed_filter_out: /path/to/GRCh38_alllowmapandsegdupregions_addT2T_liftover_SD_regions_HipSTR_GRCh38_zerobased_leftcloserightopen.bed.gz
+
+samples:
+  - CASE_SAMPLE_NAME
+  - NORMAL_SAMPLE_NAME
+
+pairs:
+  - name: CASE_vs_NORMAL
+    case: CASE_SAMPLE_NAME
+    normal: NORMAL_SAMPLE_NAME
+
+split:
+  windows_bed: ""
+  genome_fai: /path/to/GRCh38.fa.fai
+  chunks: 2887
+  exclude_regex: "(_|chrM|chrY|chrX|M$|Y$|X$)"
+```
+
+`samples` must match the sample names in the BulkMonSTR VCF. By default, BulkMonSTR derives sample names from the BAM path as:
+
+```python
+basename(bam_path).split(".")[0]
+```
+
+For example, `/data/SRR2976567.sorted.bam` becomes:
+
+```text
+SRR2976567
+```
+
+#### Paired-mode parameters
+
+The Snakemake workflow uses the paired-mode parameters recommended above:
+
+```yaml
+hard_filter:
+  posterior_filter: 0
+  mutant_dp_filter: 3
+  upper_vaf_filter: 1.1
+  lower_vaf_filter: 0.01
+  min_depth_filter: 10
+  max_mutation_length: 150
+  pop_gi_filter: 1.1
+  recurrent_filter: 1.1
+  callable_filter: 0
+  het_no_filter: true
+
+prediction:
+  label: both
+  mode: all
+  het_no_filter: true
+```
+
+These settings retain potential clonal or high-VAF events so that matched normal samples can be used later by `bulkmonstr_pairs.py` to filter germline variants.
+
+#### Configure Slurm submission
+
+The Slurm profile is:
+
+```text
+profiles/slurm/config.yaml
+```
+
+Key fields:
+
+```yaml
+jobs: 200
+latency-wait: 120
+cluster-generic-submit-cmd: >-
+  sbatch
+  --cpus-per-task={threads}
+  --mem={resources.mem_mb}
+  --time={resources.runtime}
+  --partition={resources.partition}
+  --qos={resources.qos}
+```
+
+`jobs` controls the maximum number of cluster jobs Snakemake keeps active at the same time. `latency-wait` is the number of seconds Snakemake waits for output files to appear on the shared filesystem after a job finishes.
+
+Cluster resources are set in `config.yaml`:
+
+```yaml
+cluster:
+  partition: amd-ep2
+  qos: huge
+  calling_mem_mb: 8000
+  merge_mem_mb: 64000
+  filter_mem_mb: 8000
+  feature_mem_mb: 16000
+  prediction_mem_mb: 16000
+  paired_mem_mb: 32000
+  runtime: "48:00:00"
+```
+
+Adjust `partition` and `qos` according to your cluster. For example, if `intel-sc3` is not available on the login node, use `amd-ep2`.
+
+#### Dry run
+
+Activate the BulkMonSTR environment before running Snakemake:
+
+```bash
+cd /path/to/project/code/paired
+conda activate BulkMonSTR
+snakemake -n --configfile config.yaml
+```
+
+The dry run should show all jobs without submitting them. Fix missing paths or sample names before submitting.
+
+#### Submit the paired workflow
+
+Submit with the Slurm profile:
+
+```bash
+cd /path/to/project/code/paired
+conda activate BulkMonSTR
+snakemake --profile profiles/slurm --configfile config.yaml
+```
+
+Alternatively, use the wrapper script:
+
+```bash
+bash run_paired.sh
+```
+
+Additional Snakemake options can be passed to the wrapper:
+
+```bash
+bash run_paired.sh -n
+bash run_paired.sh --rerun-incomplete
+bash run_paired.sh --unlock
+```
+
+#### Check job status and logs
+
+Check Slurm jobs:
+
+```bash
+squeue -u $USER
+```
+
+Snakemake logs are written under:
+
+```text
+{project.workdir}/logs/snakemake
+```
+
+Slurm stdout and stderr are written under:
+
+```text
+logs/slurm
+```
+
+Intermediate outputs are organized by step:
+
+```text
+{project.workdir}/01_mosaic_calling
+{project.workdir}/02_population_info
+{project.workdir}/03_initial_hard_filter
+{project.workdir}/04_extract_features
+{project.workdir}/05_prediction
+{project.workdir}/06_paired_mode
+```
 
 
 ## Resources
