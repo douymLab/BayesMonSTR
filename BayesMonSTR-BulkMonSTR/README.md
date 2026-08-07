@@ -418,6 +418,14 @@ snakemake/paired
 
 This workflow is optimized for Slurm clusters. It splits the genome into intervals, submits interval-level jobs, merges the genome-wide outputs, and then runs the paired-samples post-processing step.
 
+#### Install Snakemake
+
+```bash
+conda create -n snakemake -c conda-forge -c bioconda snakemake=6.12.3
+conda activate snakemake
+snakemake --version 
+```
+
 #### Workflow overview
 
 The paired Snakemake workflow runs the following steps:
@@ -470,7 +478,7 @@ project:
 
 bulkmonstr:
   src: /path/to/BulkMonSTR/src
-  conda_env: BulkMonSTR
+  conda_env: BayesMonSTR-BulkMonSTR
   python: python3
 
 inputs:
@@ -531,6 +539,8 @@ hard_filter:
 prediction:
   label: both
   mode: all
+  mismatch_model: mis.pkl
+  indel_model: indel.pkl
   het_no_filter: true
 ```
 
@@ -575,15 +585,11 @@ cluster:
   runtime: "48:00:00"
 ```
 
-Adjust `partition` and `qos` according to your cluster. For example, if `intel-sc3` is not available on the login node, use `amd-ep2`.
-
 #### Dry run
 
-Activate the BulkMonSTR environment before running Snakemake:
-
 ```bash
+conda activate snakemake
 cd /path/to/project/code/paired
-conda activate BulkMonSTR
 snakemake -n --configfile config.yaml
 ```
 
@@ -594,31 +600,9 @@ The dry run should show all jobs without submitting them. Fix missing paths or s
 Submit with the Slurm profile:
 
 ```bash
+conda activate snakemake
 cd /path/to/project/code/paired
-conda activate BulkMonSTR
 snakemake --profile profiles/slurm --configfile config.yaml
-```
-
-Alternatively, use the wrapper script:
-
-```bash
-bash run_paired.sh
-```
-
-Additional Snakemake options can be passed to the wrapper:
-
-```bash
-bash run_paired.sh -n
-bash run_paired.sh --rerun-incomplete
-bash run_paired.sh --unlock
-```
-
-#### Check job status and logs
-
-Check Slurm jobs:
-
-```bash
-squeue -u $USER
 ```
 
 Snakemake logs are written under:
@@ -643,7 +627,6 @@ Intermediate outputs are organized by step:
 {project.workdir}/05_prediction
 {project.workdir}/06_paired_mode
 ```
-
 
 ## Resources
 The resources in BayesMonSTR-BulkMonSTR (~/BayesMonSTR-BulkMonSTR/resource) include:
