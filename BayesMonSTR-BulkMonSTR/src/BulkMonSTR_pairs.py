@@ -252,7 +252,7 @@ def get_sample_allele_dp(all_alleles, sample_var):
 
 
 def get_vcf_infors(row, vcf_in, case_sample_name, normal_sample_name):
-    chrom = row["chrom"]
+    chrom = str(row["chrom"])
     start = row["STRSTART"]
     end = row["STREND"]
     str_id = row["str_id.1"]
@@ -857,6 +857,8 @@ if __name__ == "__main__":
             bam.split("/")[-1].split(".")[0] for bam in bam_files
         ]
     bulkpre = pd.read_csv(BulkMonSTR_output, header=0, index_col=0)
+    if "chrom" in bulkpre.columns:
+        bulkpre["chrom"] = bulkpre["chrom"].astype(str)
     vcf_in = pysam.VariantFile(vcf_file)
     pysam_fasta = pysam.FastaFile(reference_fasta)
     recurrent_gt = pd.read_csv(recurrent_file,
