@@ -14,6 +14,8 @@ PADDING_BPS = ALLELE_EXTRACT["PADDING_BPS"]  # 5 # 10 # revise_padding
 # import warnings
 # warnings.filterwarnings("ignore")
 # TODO: DEBUG VCF Format Some Headers Are Missing DONE #
+# TODO: Use pysam to fetch specific loci with coordinates is so slow compared with bedtools or pybedtools WaitTODO #
+# https://daler.github.io/pybedtools/
 
 
 def initial_hard_filter(
@@ -213,7 +215,7 @@ def get_popAF(
     germ_seq = vcf_based_features["germ_allele_seq"]
     source_seq = vcf_based_features["source_allele_seq"]
     mut_seq = vcf_based_features["mosaic_allele_seq"]
-    for j in population_panel_pysam.fetch(chrom, STRSTART, STREND):
+    for j in population_panel_pysam.fetch(chrom, STRSTART, STREND):  # TODO LIST # HACK: slow for using pysam to fetch bed files specific regions, use multiple_iterators=True is more slow than False
         row_list = j.split("\t")
         allele_start = int(row_list[1])
         allele_end = int(row_list[2])
@@ -764,7 +766,7 @@ def process_vcf(
         "ref_allele_length_padding_flanking",
     ]
     f = open(output_file, "a")
-    finish_str_id_list = []
+    finish_str_id_list = set()
     if bed_filter_out:
         bed_pysam = pysam.TabixFile(bed_filter_out)
     if pop_gi_file:
@@ -785,7 +787,7 @@ def process_vcf(
         str_id = vcf_based_features["str_id"]
         if str_id in finish_str_id_list:
             continue
-        finish_str_id_list.append(str_id)
+        finish_str_id_list.add(str_id)
         if bed_filter_out:
             if bed_region_filter(vcf_based_features, bed_pysam) == "Fail":
                 continue
