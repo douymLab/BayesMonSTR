@@ -1267,6 +1267,33 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
             chrom = seg_locus.chrom.replace("chr", "")
         else:
             chrom = seg_locus.chrom
+        if ("X" in chrom) or ("Y" in chrom):
+            # HACK: Sex chromosome need be refined in future
+            logger_mosaic.info(
+                "Locus %s %s:%d-%d is not usable because it is on X or Y chromosome"
+                " found\n"
+                % (
+                    seg_locus.STR_id,
+                    seg_locus.chrom,
+                    seg_locus.start,
+                    seg_locus.end,
+                )
+            )
+            with open(fail_file, "a") as f:
+                if myutils.acquire_lock(f):
+                    f.write(
+                        "ALL\t%s\t%s\t%d\t%d\t%s\t%s\n"
+                        % (
+                            "ALL",
+                            seg_locus.chrom,
+                            seg_locus.start,
+                            seg_locus.end,
+                            seg_locus.STR_id,
+                            "X or Y chromosome",
+                        )
+                    )
+                    myutils.release_lock(f)
+            return
         if vcf_files:
             pysam_vcf = pysam.VariantFile(vcf_files)
             # pos_MS = round((seg_locus.start + seg_locus.end) / 2)
@@ -1482,7 +1509,7 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                     myutils.release_lock(f)
                     # ALL samples 的过滤情况写入日记文件，single sample 的过滤情况既写入日记文件，又写入 VCF 文件
                     # Phase 的有无情况只写入 VCF 文件，不写入日记文件
-            return
+            return  # HACK: Need be refined, maybe just use the default stutter model but not skip this loci to mosaic calling even NoAvaliableStutterModel
         # noise class prep
         other_params = {}
         locus_infos = {}
