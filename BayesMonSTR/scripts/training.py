@@ -13,8 +13,7 @@ RF_N_ESTIMATORS  = 100
 DATA_PATH = "supp_df.tsv"
 MODEL_PATHS = {
     "phase":    "../demo/model/phase.joblib",
-    "unphase1": "../demo/model/unphase1.joblib",
-    "unphase2": "../demo/model/unphase2.joblib",
+    "unphase":  "../demo/model/unphase.joblib",
 }
 OUTPUT_DIR = "output_models"
 # ────────────────────────────────────────────────────────────────────────────

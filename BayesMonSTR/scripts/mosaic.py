@@ -17,10 +17,7 @@ def parse_args():
     )
     parser.add_argument("-p", "--prefix", type=str, default="str_gt", help="prefix")
     parser.add_argument(
-        "-u1", "--unphase_model1_path", type=str, default="model/unphase1.joblib", help="Path to unphase model 1"
-    )
-    parser.add_argument(
-        "-u2", "--unphase_model2_path", type=str, default="model/unphase2.joblib", help="Path to unphase model 2"
+        "-u", "--unphase_model", type=str, default="model/unphase.joblib", help="Path to unphase model"
     )
     parser.add_argument(
         "-ph", "--phase_model_path", type=str, default="model/phase.joblib", help="Path to phase model"
@@ -31,10 +28,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_models(unphase_model1_path, unphase_model2_path, phase_model_path):
+def load_models(unphase_model_path, phase_model_path):
     return {
-        "unphase_model1": joblib.load(unphase_model1_path),
-        "unphase_model2": joblib.load(unphase_model2_path),
+        "unphase_model": joblib.load(unphase_model_path),
         "phase_model": joblib.load(phase_model_path),
     }
 
@@ -66,16 +62,8 @@ def process_data(df, models, individual):
     # Process unphase data
     unphase_df = df.copy()
     if len(unphase_df) > 0:
-        X_unphase = unphase_df[models["unphase_model1"].feature_names_in_]
-        predictions = models["unphase_model1"].predict(X_unphase)
-
-        # Apply model2 for mosaic predictions
-        mask_mosaic = predictions == "mosaic"
-        if any(mask_mosaic):
-            X_mosaic = unphase_df[mask_mosaic][models["unphase_model2"].feature_names_in_]
-            predictions[mask_mosaic] = models["unphase_model2"].predict(X_mosaic)
-
-        unphase_df["prediction"] = predictions
+        X_unphase = unphase_df[models["unphase_model"].feature_names_in_]
+        unphase_df["prediction"] = models["unphase_model"].predict(X_unphase)
         unphase_df["unphase_filter"] = (unphase_df["vaf_mut_sc_mean_prob"] > 0.25) & (
             unphase_df["min_mut_sc_counts"] >= 3
         )
@@ -112,7 +100,7 @@ def main():
     # Load models
     print("Loading models...")
     models = load_models(
-        args.unphase_model1_path, args.unphase_model2_path, args.phase_model_path
+        args.unphase_model, args.phase_model_path
     )
 
     # Process data
