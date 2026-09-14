@@ -203,7 +203,7 @@ def get_noise_fraction(row):
     dp = row["depth"]
     mosaic_dp = int(round(dp * row["genotyping_mle_mosaic_allele_vaf_single_locus"])) ### key modification
     diff = row["genotyping_mle_mosaic_allele_vaf_single_locus"] - max_noise
-    pval = stats.binomtest(mosaic_dp, dp, max_noise, alternative="greater")
+    pval = stats.binomtest(mosaic_dp, dp, max_noise, alternative="greater").pvalue
     return pd.Series(
         {"mut_noise_diff_frac": diff, "binomial_noise_p_value": pval}
     )
@@ -2592,6 +2592,7 @@ def run_final_hard_filter(
         # "no_norm_len_revise_depth_ratio"
         # "norm_revise_depth_ratio",
         "genotyping_mle_mosaic_allele_vaf_single_locus",
+        "binomial_noise_p_value",
         "genotyping_obs_mutant_dp",
         "genotyping_obs_source_dp",
         "genotyping_obs_germ_dp",
@@ -3108,6 +3109,7 @@ def run_final_hard_filter(
         "mutant_dp",
         "stutter_ratio",
         "mut_noise_diff_frac",
+        "binomial_noise_p_value",
         # "average_mappability_score_k24",
         "overall_mean_flanking_sbs_num_per_bp",
         "germ_mean_flanking_sbs_num_per_bp",

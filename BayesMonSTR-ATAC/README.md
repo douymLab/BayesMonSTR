@@ -217,11 +217,33 @@ bayesmonstr-atac filter \
 * `--chrom, -c` : Chromosome (default: empty)
 * `--start, -s` : Genomic start position (default: `0`)
 * `--end, -e` : Genomic end position (default: `1000000000`)
-* `--filters-json, -fj` : Json file for filtering thresholds. Default path is `src/filters.json`. In the provided JSON file, there are explanations for each filter, based on which you can modify the threshold of the filters.
+* `--filters-json, -fj` : JSON filter profile. The default `src/filters.json` applies `basic` rules first, then the rules under `by_mutation_type`, and finally `final` rules. Supply another file to choose your own rules or thresholds.
 * `--mutation-type, -mt` : Expected type of mutation. Select from cell specific, share and both (default: `both`).
 * `--output-dir, -o` : Output directory (default: `./04filter`)
 * `--plot, -p` : Add `--plot` in command line to plot count of loci during filtering.
 * `--keep-temp, -k` : Add `--keep-temp` in command line to keep the temporary files.
+
+The mutation-aware filter profile uses this structure:
+
+```json
+{
+  "version": 2,
+  "basic": [{"column": "CMP", "operator": ">", "threshold": 0.5}],
+  "by_mutation_type": {
+    "INDEL": {"filters": [{"column": "stutter_ratio", "operator": "<", "threshold": 0.1}]},
+    "Mismatch": {"filters": [{"column": "mut_mean_baseq", "operator": ">=", "threshold": 30}]}
+  },
+  "final": [{"column": "celltype_count_mosaic", "operator": "==", "threshold": 1}]
+}
+```
+
+Top-level filters are combined sequentially with AND. For compound rules, use nested
+`{"all": [...]}`, `{"any": [...]}`, or `{"not": {...}}`. Set `"enabled": false` on a
+rule or mutation-type block to disable it without deleting it. The legacy JSON format
+(a top-level list of filters) remains supported. In v2 profiles, missing columns raise an
+error by default to prevent silent under-filtering; set `"on_missing_column": "skip"`
+only when that behavior is intentional. A rule can use `"missing_values": "pass"` when
+the column is present but unavailable values such as `NA` or `.` should not be filtered.
 
 ---
 

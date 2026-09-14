@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 import warnings
+from variant_filtering import add_filter_features, analyze_filters, apply_filter_config, load_filter_config
 
 
 def determine_muttype2(df):
@@ -179,7 +180,7 @@ def parse_allele_mosaic(row, CB_list):
     ])
 
 
-def analyze_filters(df, filters, output_prefix, plot=True, title="Filtering Effect Analysis"):
+def _legacy_analyze_filters(df, filters, output_prefix, plot=True, title="Filtering Effect Analysis"):
     """
     Apply filters sequentially and individually, generate plots and return filtered DataFrame.
     Skips any filter if:
@@ -393,8 +394,7 @@ def run_cell_level_filter(
 
     if not os.path.exists(filters_json):
         raise FileNotFoundError(f"Filters file not found: {filters_json}")
-    with open(filters_json, 'r', encoding='utf-8') as f:
-        filters = json.load(f)
+    filters = load_filter_config(filters_json)
 
     df_processed = determine_muttype2(df_origin)
 
@@ -404,8 +404,10 @@ def run_cell_level_filter(
     df_processed['MBP_abs'] = abs(df_processed['MBP'])
     df_processed['mut_mean_baseq'] = df_processed['mut_mean_baseq'].fillna(40)
     df_processed['sample'] = sample_name
+    if isinstance(filters, dict):
+        df_processed = add_filter_features(df_processed, filters.get('mutation_type_map'))
 
-    clean_df = analyze_filters(
+    clean_df = apply_filter_config(
         df_processed,
         filters,
         title=f"QC Filters - {sample_name}",
@@ -438,6 +440,7 @@ def run_cell_level_filter(
     clean_df_simp.to_csv(clean_path, index=False)
 
     print(f"Simplified final result saved to: {clean_path}")
+    return clean_df
 
 
 def main():

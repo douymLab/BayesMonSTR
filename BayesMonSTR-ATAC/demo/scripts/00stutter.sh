@@ -7,7 +7,7 @@ bayesmonstr-atac stutter \
     --output-dir ./00stutter \
     --chrom chr6 \
     --start 43243669 \
-    --end 43243695 \
+    --end 43243695
 
 cd ./00stutter
 cat results/* >> stutter_result.txt

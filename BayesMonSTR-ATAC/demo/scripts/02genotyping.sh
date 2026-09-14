@@ -8,7 +8,7 @@ bayesmonstr-atac genotyping \
     --output-dir ./02genotyping \
     --chrom chr6 \
     --start 43243669 \
-    --end 43243695 \
+    --end 43243695
 
 cd ./02genotyping/results
 bgzip chr6_43243669_43243695_mosaic_calling.vcf

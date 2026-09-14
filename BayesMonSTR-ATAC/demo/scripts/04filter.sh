@@ -10,6 +10,7 @@ for sample in demo1 demo2 demo3;do
     --cell-barcode ./resources/cell_barcode/${sample}_cell_barcode.tsv \
     --mappability ./resources/hg38_k24_k100_mappability.bed.gz \
     --metadata ./resources/filter_metadata.csv \
+    --filters-json ../src/filters.json \
     --keep-temp
     ### In the demo, due to the small data size, estimating population parameters is prone to bias; 
     ### therefore, population-related filtering has not been applied here. 

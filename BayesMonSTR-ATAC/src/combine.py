@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
-import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import warnings
+from variant_filtering import add_filter_features, analyze_filters, apply_filter_config, load_filter_config
 
 def merge_csv_files(folder_path, output_file=None, add_filename=False, recursive=False, file_suffix='.csv'):
     df_list = []
@@ -43,7 +43,7 @@ def merge_csv_files(folder_path, output_file=None, add_filename=False, recursive
 
     return merged_df
     
-def analyze_filters(df, filters, output_prefix, plot=True, title="Filtering Effect Analysis"):
+def _legacy_analyze_filters(df, filters, output_prefix, plot=True, title="Filtering Effect Analysis"):
 
     n_total = len(df)
 
@@ -270,9 +270,11 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
     
     if filters_json is None:
         filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
-    with open(filters_json, 'r', encoding='utf-8') as f:
-        filters = json.load(f)
-    clean_df = analyze_filters(
+    filters = load_filter_config(filters_json)
+    if isinstance(filters, dict):
+        df_processed = add_filter_features(df_processed, filters.get('mutation_type_map'))
+        df_processed.to_csv(all_path, index=False)
+    clean_df = apply_filter_config(
         df_processed,
         filters,
         output_prefix=output_prefix
