@@ -19,3 +19,10 @@ for sample in demo1 demo2 demo3;do
     # --recurrent-info ./03population/pop_infors_output_mosaic_recurrent_info.txt.gz \
   echo "Done." >&2
 done
+
+# Combine samples and apply cohort-level allele-count/recurrent-locus filters.
+bayesmonstr-atac combine \
+  --input-dir ./04filter \
+  --output-prefix ./04filter/results \
+  --filters-json ../src/filters.json \
+  --dataset demo

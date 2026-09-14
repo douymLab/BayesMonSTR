@@ -171,10 +171,73 @@ def add_filter_features(df, mutation_type_map=None):
         result["mut_type_share"] = pd.Series(pd.NA, index=result.index, dtype="object")
         result.loc[result["barcode_count_mosaic"] == 1, "mut_type_share"] = "Cell-specific"
         result.loc[result["barcode_count_mosaic"] > 1, "mut_type_share"] = "Share"
+    if "AAD" in result:
+        result["allele_count"] = result["AAD"].apply(
+            lambda value: len(value.split(";"))
+            if pd.notna(value) and isinstance(value, str) and value.strip()
+            else 0
+        )
     required = {"inframe_ins_prob", "inframe_del_prob", "outframe_ins_prob", "outframe_del_prob", "depth", "genotyping_mle_mosaic_allele_vaf_single_locus"}
     if "binomial_noise_p_value" not in result and required.issubset(result.columns):
         result["binomial_noise_p_value"] = result.apply(_binomial_noise_p_value, axis=1)
     return result
+
+
+def apply_cohort_filter_config(df, config, output_prefix=None, plot=False, title="Cohort Filters"):
+    """Apply filters that require combined samples, including recurrent-locus removal."""
+    if not isinstance(config, dict):
+        return df
+    cohort = config.get("cohort")
+    if not cohort or cohort.get("enabled", True) is False:
+        return df
+
+    result = add_filter_features(df, config.get("mutation_type_map"))
+    result["__filter_order"] = np.arange(len(result))
+    type_column = config.get("mutation_type_column", "mut_type_general")
+    id_column = cohort.get("locus_id_column", "str_id")
+    group_by = cohort.get("group_by", ["dataset", id_column])
+    missing_group_columns = [column for column in group_by if column not in result]
+    if id_column not in result:
+        raise KeyError(f"Cohort locus ID column '{id_column}' was not found.")
+    if missing_group_columns and cohort.get("on_missing_group_column", "error") != "skip_recurrence":
+        raise KeyError(f"Cohort grouping columns were not found: {missing_group_columns}")
+    if missing_group_columns:
+        warnings.warn(
+            f"Cohort recurrence filtering skipped because grouping columns were not found: "
+            f"{missing_group_columns}. Row-level cohort filters are still applied."
+        )
+
+    parts = []
+    configured_mask = pd.Series(False, index=result.index, dtype=bool)
+    on_missing = config.get("on_missing_column", "error")
+    for mutation_type, block in cohort.get("by_mutation_type", {}).items():
+        type_mask = result[type_column] == mutation_type
+        configured_mask |= type_mask
+        part = result.loc[type_mask]
+        if part.empty:
+            continue
+        if block.get("enabled", True) is False:
+            parts.append(part)
+            continue
+        part = analyze_filters(
+            part,
+            block.get("filters", []),
+            f"{output_prefix}_cohort_{mutation_type.lower()}" if output_prefix else None,
+            plot,
+            f"{title} - {mutation_type}",
+            on_missing,
+        )
+        max_group_count = block.get("max_group_count")
+        if max_group_count is not None and not missing_group_columns and not part.empty:
+            group_counts = part.groupby(group_by, dropna=False).size().reset_index(name="count")
+            recurrent_ids = group_counts.loc[group_counts["count"] > max_group_count, id_column].unique()
+            part = part.loc[~part[id_column].isin(recurrent_ids)]
+        parts.append(part)
+
+    if cohort.get("unconfigured_mutation_types", "drop") == "keep":
+        parts.append(result.loc[~configured_mask])
+    result = pd.concat(parts, axis=0) if parts else result.iloc[0:0]
+    return result.sort_values("__filter_order").drop(columns="__filter_order")
 
 
 def apply_filter_config(df, config, output_prefix=None, plot=False, title="QC Filters"):

@@ -233,7 +233,14 @@ The mutation-aware filter profile uses this structure:
     "INDEL": {"filters": [{"column": "stutter_ratio", "operator": "<", "threshold": 0.1}]},
     "Mismatch": {"filters": [{"column": "mut_mean_baseq", "operator": ">=", "threshold": 30}]}
   },
-  "final": [{"column": "celltype_count_mosaic", "operator": "==", "threshold": 1}]
+  "final": [{"column": "celltype_count_mosaic", "operator": "==", "threshold": 1}],
+  "cohort": {
+    "group_by": ["dataset", "str_id"],
+    "by_mutation_type": {
+      "INDEL": {"filters": [{"column": "allele_count", "operator": "<", "threshold": 4}], "max_group_count": 2},
+      "Mismatch": {"filters": [{"column": "allele_count", "operator": "==", "threshold": 2}], "max_group_count": 1}
+    }
+  }
 }
 ```
 
@@ -245,6 +252,12 @@ error by default to prevent silent under-filtering; set `"on_missing_column": "s
 only when that behavior is intentional. A rule can use `"missing_values": "pass"` when
 the column is present but unavailable values such as `NA` or `.` should not be filtered.
 
+The `cohort` stage runs only in `bayesmonstr-atac combine`, after all row-level filters.
+It derives `allele_count` from `AAD`, applies mutation-specific allele-count rules, then
+removes a locus globally when its count in any `group_by` group exceeds
+`max_group_count`. If `dataset` is not present, the default profile still applies the
+allele-count rules and skips only recurrence removal with a warning.
+
 ---
 
 ### 6. Combine chunked results
@@ -253,8 +266,9 @@ If you run the genotyping using chunked genomic intervals, use this command to c
 
 ```bash
 bayesmonstr-atac combine \
-  --input_dir filter_dir \
-  --output_prefix final_results
+  --input-dir filter_dir \
+  --output-prefix final_results \
+  --dataset DATASET_NAME
 ```
 
 **Options**
@@ -263,6 +277,7 @@ bayesmonstr-atac combine \
 * `--output-prefix, -o` : Prefix of outputs (default: `./04filter/results`)
 * `--filters-json, -fj` : Same as filter step
 * `--mutation-type, -mt` : Same as filter step
+* `--dataset, -ds` : Dataset label used by cohort-level `dataset + str_id` recurrence filtering. Omit it when input rows already contain a `dataset` column.
 
 ---
 

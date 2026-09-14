@@ -3,7 +3,13 @@ from pathlib import Path
 import pandas as pd
 import json
 import warnings
-from variant_filtering import add_filter_features, analyze_filters, apply_filter_config, load_filter_config
+from variant_filtering import (
+    add_filter_features,
+    analyze_filters,
+    apply_cohort_filter_config,
+    apply_filter_config,
+    load_filter_config,
+)
 
 def merge_csv_files(folder_path, output_file=None, add_filename=False, recursive=False, file_suffix='.csv'):
     df_list = []
@@ -217,8 +223,9 @@ def process_allele_df(df):
     all_records = []
 
     for _, row in df.iterrows():
-        if row['ALLELE_BARCODE_UMI']!='.':
-            records = row['ALLELE_BARCODE_UMI'].split(";")
+        allele_barcode_umi = row.get('ALLELE_BARCODE_UMI')
+        if pd.notna(allele_barcode_umi) and allele_barcode_umi not in ('.', ''):
+            records = str(allele_barcode_umi).split(";")
             barcodes = []
             for record in records:
                 if '|' not in record:
@@ -235,12 +242,15 @@ def process_allele_df(df):
                     continue
 
             if barcodes:
+                mutation_length = row.get('length', row.get('MBP', 0))
+                mutation_length = pd.to_numeric(mutation_length, errors='coerce')
+                mutation_length = abs(mutation_length) if pd.notna(mutation_length) else 0
                 barcode_counts = pd.Series(barcodes).value_counts()
                 temp_df = pd.DataFrame({
                     'barcode': barcode_counts.index,
                     'count': barcode_counts.values,
                     'id': row['str_id'],
-                    'length': row['length'],
+                    'length': mutation_length,
                     'sample': row['sample']
                 })
                 all_records.append(temp_df)
@@ -252,7 +262,7 @@ def process_allele_df(df):
     final_df = final_df[['id', 'length', 'barcode', 'count', 'sample']].reset_index(drop=True)
     return final_df
 
-def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
+def run(input_dir, output_prefix, filters_json=None, mutation_type='both', dataset=None):
     output_path = Path(output_prefix)
     output_dir = output_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -271,6 +281,8 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
     if filters_json is None:
         filters_json = os.path.join(os.path.dirname(__file__), 'filters.json')
     filters = load_filter_config(filters_json)
+    if dataset is not None and 'dataset' not in df_processed:
+        df_processed['dataset'] = dataset
     if isinstance(filters, dict):
         df_processed = add_filter_features(df_processed, filters.get('mutation_type_map'))
         df_processed.to_csv(all_path, index=False)
@@ -283,6 +295,12 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
         clean_df = clean_df[clean_df['barcode_count_mosaic'] == 1]
     elif mutation_type == 'share':
         clean_df = clean_df[clean_df['barcode_count_mosaic'] > 1]
+    clean_df = apply_cohort_filter_config(
+        clean_df,
+        filters,
+        output_prefix=output_prefix,
+        plot=False,
+    )
     clean_df.to_csv(f'{output_prefix}_clean.csv', index=False)
     print(f"Filtering completed. Final result saved to: {output_prefix}_clean.csv")        
 
@@ -321,6 +339,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_prefix", default="./04filter/results", help="Prefix of outputs")
     parser.add_argument("--filters_json", default=None, help="Json file for filtering thresholds. Default path is src/filters.json.")
     parser.add_argument('--mutation_type', required=False, default="both", choices=["both", "cell_specific", "share"], help='Type of mutation')
+    parser.add_argument('--dataset', default=None, help='Dataset label used for cohort-level recurrence filtering')
 
     args = parser.parse_args()
 
@@ -329,5 +348,6 @@ if __name__ == "__main__":
         input_dir=args.input_dir,
         output_prefix=args.output_prefix,
         filters_json=args.filters_json,
-        mutation_type=args.mutation_type
+        mutation_type=args.mutation_type,
+        dataset=args.dataset
     )

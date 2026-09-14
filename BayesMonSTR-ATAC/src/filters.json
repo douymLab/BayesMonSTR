@@ -62,5 +62,26 @@
   "final": [
     {"column": "celltype_count_mosaic", "operator": "==", "threshold": 1},
     {"column": "na_celltype_rc_mosaic", "operator": "==", "threshold": 0}
-  ]
+  ],
+  "cohort": {
+    "enabled": true,
+    "group_by": ["dataset", "str_id"],
+    "locus_id_column": "str_id",
+    "on_missing_group_column": "skip_recurrence",
+    "unconfigured_mutation_types": "drop",
+    "by_mutation_type": {
+      "INDEL": {
+        "filters": [
+          {"column": "allele_count", "operator": "<", "threshold": 4}
+        ],
+        "max_group_count": 2
+      },
+      "Mismatch": {
+        "filters": [
+          {"column": "allele_count", "operator": "==", "threshold": 2}
+        ],
+        "max_group_count": 1
+      }
+    }
+  }
 }
