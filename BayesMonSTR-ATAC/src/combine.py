@@ -301,8 +301,6 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
 
     df_all = merge_csv_files(input_dir, add_filename=True, recursive=True, file_suffix='_raw.bed')
     df_all.to_csv(f"{output_prefix}_raw.csv",index=False)
-    panel_38_final = pd.read_csv(f"/storage/douyanmeiLab/wangchunyi/reference/TR_catalog/HipSTR-references/human/hg38.hipstr_reference_removeslash_lt150_simp_annovar_gex_maf_gc_rank_zscore_hmm_gex2_addbasicinfo.csv")
-    df_all = pd.merge(df_all, panel_38_final, left_on='str_id', right_on='id', how='left')
 
     final_df = process_allele_df(df_all)
     final_df_group = final_df.groupby(['sample','barcode']).agg(
@@ -311,15 +309,6 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both'):
     ).reset_index()
     final_df_group.to_csv(f"{output_prefix}_matrix.csv",index=False)
     print(f"Matirx saved to: {output_prefix}_matrix.csv")
-
-    df_regulatory = df_all[df_all['max_freq_anno'].isin(['TssA','TssBiv','EnhA1','EnhA2'])]
-    final_df_regulatory = process_allele_df(df_regulatory)
-    final_df_regulatory_group = final_df_regulatory.groupby(['sample','barcode']).agg(
-        count=('length', 'size'),
-        length_sum=('length', 'sum')
-    ).reset_index()
-    final_df_regulatory_group.to_csv(f"{output_prefix}_matrix_reg.csv",index=False)
-    print(f"Matrix of regulatory loci saved to: {output_prefix}_matrix_reg.csv")
 
 if __name__ == "__main__":
     import argparse
