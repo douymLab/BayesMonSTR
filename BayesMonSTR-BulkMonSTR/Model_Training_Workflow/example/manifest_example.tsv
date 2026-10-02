@@ -1,0 +1,3 @@
+sample_name	feature_file	label_file
+Sample1	/path/to/Sample1_feature_output.csv	/path/to/Sample1_labels.tsv
+Sample2	/path/to/Sample2_feature_output.csv	/path/to/Sample2_labels.tsv
