@@ -61,7 +61,7 @@ being labeled. Useful designs include:
   a mutant allele that is not enriched in the offspring relative to the parents indicates an artifact.
 - **Orthogonal sequencing of the same sample** (another platform or library): a mutant allele that
   is absent from adequately covered orthogonal data (e.g. depth > 30) indicates an artifact; a mutant
-  allele supported in the orthogonal data at a low VAF supports a mosaic mutation.
+  allele supported in the orthogonal data supports a mosaic mutation.
 - **In silico mixtures of samples with known genotypes**, such as tumor and matched normal samples, or
   a single-cell-derived colony and its source cells: mutations validated in the orthogonal samples are
   mosaic mutations; variants with high VAFs (e.g. > 0.2) in both orthogonal samples are germline
