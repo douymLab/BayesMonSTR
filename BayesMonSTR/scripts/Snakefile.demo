@@ -1,0 +1,524 @@
+#!/usr/bin/env python3
+# =============================================================================
+# Snakefile.demo -- alignment and preprocessing upstream of BayesMonSTR
+# =============================================================================
+#
+# This is the pipeline that produced the BAM/VCF inputs of BayesMonSTR from
+# raw FASTQ. It is provided as an executable record of the commands and
+# parameters used in the paper; paths are generic, everything run-specific
+# (reference, resource bundle, working directory, sample sheet) lives in
+# CONFIG below.
+#
+#   FASTQ
+#     -> fastp                          read trimming / QC
+#     -> bwa mem | samtools sort        alignment
+#     -> picard MarkDuplicates          duplicate marking
+#     -> picard AddOrReplaceReadGroups  read groups
+#     -> GATK BaseRecalibrator/ApplyBQSR
+#     -> GATK HaplotypeCaller -ERC GVCF per sample, per chromosome
+#     -> GATK CombineGVCFs -> GenotypeGVCFs
+#     -> GATK VariantRecalibrator/ApplyVQSR   SNPs, then INDELs
+#     -> ANNOVAR gnomAD population-AF filter  (INFO/AF > 0.001)
+#     -> Eagle 2.4                            phasing
+#   and, in parallel, mosdepth depth QC.
+#
+# Outputs, and the BayesMonSTR arguments they feed:
+#
+#   {workdir}/metadata.csv                 -i metadata.csv
+#   {workdir}/bam/{sample}.bam             'path' column of metadata.csv
+#   {workdir}/phased/HC.chr*.phased.vcf.gz -p (bulk) and -g (MDA samples)
+#   {workdir}/depth/*.mosdepth.summary.txt depth QC, source of the 'dp' column
+#
+# Usage:
+#
+#   snakemake -s scripts/Snakefile.demo -j 20            # uses CONFIG defaults
+#   snakemake -s scripts/Snakefile.demo -j 20 --configfile config.yaml
+#
+# Input: a sample sheet (CONFIG['sample_sheet']), comma-separated, with the
+# header
+#
+#   sample,individual,type,fq1,fq2
+#   CA-CA2-Imm1-MOM-DNA,CA,mda,fastq/CA-CA2-Imm1-MOM-DNA_1.fq.gz,fastq/CA-CA2-Imm1-MOM-DNA_2.fq.gz
+#   CA-blood-bulk,CA,bulk,fastq/CA-blood-bulk_1.fq.gz,fastq/CA-blood-bulk_2.fq.gz
+#
+# `type` is the BayesMonSTR sample type (bulk | mda | pta | scc). An optional
+# `bam` column overrides the default {workdir}/bam/{sample}.bam, for samples
+# that were not aligned here.
+#
+# Requirements: fastp, bwa, samtools, picard, GATK4, bcftools+htslib (bgzip,
+# tabix), mosdepth, ANNOVAR (table_annovar.pl), Eagle v2.4.1, and python3 +
+# pandas (the sample sheet below is read with pandas).
+# The GRCh37/b37 resource bundle needs dbsnp_138.b37.vcf,
+# 1000G_phase1.indels.b37.vcf, Mills_and_1000G_gold_standard.indels.b37.vcf,
+# hapmap_3.3.b37.vcf and 1000G_omni2.5.b37.vcf, each with its GATK .idx file.
+#
+# =============================================================================
+
+import os
+
+import pandas as pd
+
+# =============================================================================
+# CONFIG -- edit the defaults below, or override with --configfile my.yaml
+# =============================================================================
+CONFIG_DEFAULTS = {
+    "workdir": "preproc",
+
+    # reference genome and resource files (GRCh37/b37, no 'chr' prefix)
+    "ref": "/path/to/human_g1k_v37_decoy.fasta",
+    "bundle": "/path/to/b37_bundle",  # dbsnp/Mills/1000G/hapmap/omni VCFs + .idx
+    "annovar_humandb": "/path/to/annovar/humandb",
+    "eagle": "eagle",  # Eagle v2.4.1 executable
+    "eagle_genetic_map": "/path/to/Eagle_v2.4.1/tables/genetic_map_hg19_withX.txt.gz",
+
+    "sample_sheet": "samples.csv",
+    "chroms": [str(i) for i in range(1, 23)] + ["X", "Y"],
+
+    "threads": {"fastp": 3, "bwa": 16, "sort": 8, "eagle": 1},
+    "mem_mb": {"fastp": 6000, "bwa": 40000, "markdup": 40000, "add_rg": 40000,
+               "bqsr": 40000, "hc": 5000, "combine": 11000, "genotype": 10000,
+               "vsqr_snp": 11000, "vsqr_indel": 10000, "annovar": 8000,
+               "eagle": 9000},
+
+    # Preamble for every shell command. On a module-based cluster put your own
+    # environment here, e.g. "module load picard gatk bwa samtools bcftools
+    # fastp; set -euo pipefail;". `pipefail` matters for the bwa|samtools pipe.
+    "shell_prefix": "set -euo pipefail;",
+}
+
+config = {**CONFIG_DEFAULTS, **config}
+
+WORK = config["workdir"]
+REF = config["ref"]
+BUNDLE = config["bundle"]
+CHROMS = config["chroms"]
+THREADS = config["threads"]
+MEM = config["mem_mb"]
+
+QC_DIR = f"{WORK}/qc"
+FASTQ_DIR = f"{WORK}/fastq"
+BAM_DIR = f"{WORK}/bam"
+BAM_TMP_DIR = f"{BAM_DIR}/tmp"  # intermediates, kept out of BAM_DIR so that
+                                # {sample}.bam cannot match *.sorted.bam etc.
+DEPTH_DIR = f"{WORK}/depth"
+GVCF_DIR = f"{WORK}/gvcf"
+VCF_DIR = f"{WORK}/vcf"
+PHASED_DIR = f"{WORK}/phased"
+INTERVAL_DIR = f"{WORK}/intervals"
+LOG_DIR = f"{WORK}/log"
+
+# Wildcards must not span directories: without this, `bam/{sample}.bam` also
+# "produces" `bam/tmp/{sample}.sorted.bam` (with sample = "tmp/X.sorted"), and
+# Snakemake recurses on that ambiguity instead of building the DAG.
+wildcard_constraints:
+    sample=r"[^/]+",
+    individual=r"[^/]+",
+    num=r"[^/]+",
+
+shell.prefix(config["shell_prefix"])
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# -----------------------------------------------------------------------------
+# Sample sheet
+# -----------------------------------------------------------------------------
+sheet = pd.read_csv(config["sample_sheet"])
+sheet.columns = [c.strip() for c in sheet.columns]
+
+SAMPLES = list(sheet["sample"])
+
+
+def bam_of(sample):
+    """Alignment for a sample: the sheet's 'bam' column, else {workdir}/bam."""
+    row = sheet.loc[sheet["sample"] == sample].iloc[0]
+    if "bam" in sheet.columns and isinstance(row["bam"], str) and row["bam"]:
+        return row["bam"]
+    return f"{BAM_DIR}/{sample}.bam"
+
+
+rule all:
+    input:
+        expand(f"{PHASED_DIR}/HC.chr{{num}}.phased.vcf.gz.tbi", num=CHROMS),
+        f"{WORK}/metadata.csv",
+
+
+# =============================================================================
+# 1. FASTQ -> analysis-ready BAM
+# =============================================================================
+rule fastp:
+    input:
+        r1=lambda wc: sheet.loc[sheet["sample"] == wc.sample, "fq1"].iloc[0],
+        r2=lambda wc: sheet.loc[sheet["sample"] == wc.sample, "fq2"].iloc[0],
+    output:
+        r1=f"{FASTQ_DIR}/{{sample}}_1.clean_paired.fq.gz",
+        r2=f"{FASTQ_DIR}/{{sample}}_2.clean_paired.fq.gz",
+        r1_unpaired=f"{FASTQ_DIR}/{{sample}}_1.unpaired.fq.gz",
+        r2_unpaired=f"{FASTQ_DIR}/{{sample}}_2.unpaired.fq.gz",
+        html=f"{QC_DIR}/{{sample}}.fastp.html",
+    threads: THREADS["fastp"]
+    resources:
+        mem_mb=MEM["fastp"],
+    shell:
+        "fastp -i {input.r1} -o {output.r1} -I {input.r2} -O {output.r2} "
+        "--unpaired1 {output.r1_unpaired} --unpaired2 {output.r2_unpaired} "
+        "-h {output.html} --thread {threads}"
+
+
+rule bwa_mem_sort:
+    """bwa mem, piped into samtools sort."""
+    input:
+        r1=f"{FASTQ_DIR}/{{sample}}_1.clean_paired.fq.gz",
+        r2=f"{FASTQ_DIR}/{{sample}}_2.clean_paired.fq.gz",
+        ref=REF,
+    output:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.sorted.bam",
+    params:
+        sort_threads=THREADS["sort"],
+    threads: THREADS["bwa"]
+    resources:
+        mem_mb=MEM["bwa"],
+    shell:
+        "bwa mem -t {threads} {input.ref} {input.r1} {input.r2} "
+        "| samtools sort -@ {params.sort_threads} -o {output.bam} -"
+
+
+rule markdup:
+    """Duplicate marking. Read groups are added afterwards (rule add_rg), as in
+    these experiments: each BAM holds one sample/library, and the read groups
+    are given the sample name as ID and library."""
+    input:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.sorted.bam",
+    output:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.mkdup.bam",
+    params:
+        metrics=f"{QC_DIR}/mkdup_metrics_{{sample}}_marked_dup_metrics.txt",
+    resources:
+        mem_mb=MEM["markdup"],
+    shell:
+        "picard MarkDuplicates I={input.bam} O={output.bam} M={params.metrics}"
+
+
+rule add_rg:
+    input:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.mkdup.bam",
+    output:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.rg.bam",
+    resources:
+        mem_mb=MEM["add_rg"],
+    shell:
+        "picard AddOrReplaceReadGroups I={input.bam} O={output.bam} "
+        "RGID={wildcards.sample} RGLB={wildcards.sample} RGPL=BGI "
+        "RGPU={wildcards.sample} RGSM={wildcards.sample}"
+
+
+rule base_recalibrator:
+    input:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.rg.bam",
+        ref=REF,
+        known=[f"{BUNDLE}/1000G_phase1.indels.b37.vcf",
+               f"{BUNDLE}/dbsnp_138.b37.vcf",
+               f"{BUNDLE}/Mills_and_1000G_gold_standard.indels.b37.vcf"],
+    output:
+        table=f"{BAM_TMP_DIR}/{{sample}}.recal.table",
+    resources:
+        mem_mb=MEM["bqsr"],
+    shell:
+        "gatk BaseRecalibrator -R {input.ref} -I {input.bam} "
+        "--known-sites {input.known[0]} --known-sites {input.known[1]} "
+        "--known-sites {input.known[2]} -O {output.table}"
+
+
+rule apply_bqsr:
+    input:
+        bam=f"{BAM_TMP_DIR}/{{sample}}.rg.bam",
+        table=f"{BAM_TMP_DIR}/{{sample}}.recal.table",
+        ref=REF,
+    output:
+        bam=f"{BAM_DIR}/{{sample}}.bam",
+        index=f"{BAM_DIR}/{{sample}}.bam.bai",
+    resources:
+        mem_mb=MEM["bqsr"],
+    shell:
+        "gatk ApplyBQSR -R {input.ref} -I {input.bam} -O {output.bam} "
+        "-bqsr {input.table} "
+        "--static-quantized-quals 10 --static-quantized-quals 20 "
+        "--static-quantized-quals 30 "
+        "--add-output-sam-program-record --create-output-bam-index true"
+
+
+rule mosdepth:
+    input:
+        bam=lambda wc: bam_of(wc.sample),
+        ref=REF,
+    output:
+        summary=f"{DEPTH_DIR}/{{sample}}.mosdepth.summary.txt",
+    params:
+        prefix=f"{DEPTH_DIR}/{{sample}}",
+    shell:
+        "mosdepth -f {input.ref} -n --fast-mode --by 500 "
+        "{params.prefix} {input.bam}"
+
+
+# =============================================================================
+# 2. Joint germline calling per chromosome
+# =============================================================================
+rule intervals:
+    """Per-chromosome interval string for -L, e.g. '1:1-249250621'."""
+    input:
+        fai=f"{REF}.fai",
+    output:
+        f"{INTERVAL_DIR}/{{num}}.list",
+    shell:
+        "awk -v c={wildcards.num} '$1==c {{print $1\":1-\"$2}}' "
+        "{input.fai} > {output}"
+
+
+rule haplotype_caller:
+    input:
+        bam=lambda wc: bam_of(wc.sample),
+        ref=REF,
+        dbsnp=f"{BUNDLE}/dbsnp_138.b37.vcf",
+        interval=f"{INTERVAL_DIR}/{{num}}.list",
+    output:
+        gvcf=f"{GVCF_DIR}/{{sample}}.chr{{num}}.g.vcf.gz",
+    resources:
+        mem_mb=MEM["hc"],
+    shell:
+        "gatk --java-options '-Xmx4g' HaplotypeCaller -R {input.ref} "
+        "-I {input.bam} --dbsnp {input.dbsnp} -L {input.interval} "
+        "-ERC GVCF -O {output.gvcf}"
+
+
+rule combine_gvcfs:
+    input:
+        gvcfs=lambda wc: [f"{GVCF_DIR}/{s}.chr{wc.num}.g.vcf.gz" for s in SAMPLES],
+        ref=REF,
+        dbsnp=f"{BUNDLE}/dbsnp_138.b37.vcf",
+    output:
+        samples=f"{VCF_DIR}/cohort_chr{{num}}.g.vcf.list",
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.combined.g.vcf.gz",
+    resources:
+        mem_mb=MEM["combine"],
+    shell:
+        "printf '%s\\n' {input.gvcfs} > {output.samples}; "
+        "gatk --java-options '-Xmx10G -XX:ParallelGCThreads=1' CombineGVCFs "
+        "-R {input.ref} --dbsnp {input.dbsnp} "
+        "--variant {output.samples} -O {output.vcf}"
+
+
+rule genotype_gvcfs:
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.combined.g.vcf.gz",
+        ref=REF,
+    output:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.genotyped.vcf.gz",
+    resources:
+        mem_mb=MEM["genotype"],
+    shell:
+        "gatk --java-options '-Xmx8G -XX:ParallelGCThreads=1' GenotypeGVCFs "
+        "-R {input.ref} -V {input.vcf} -O {output.vcf}"
+
+
+rule vsqr_snp:
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.genotyped.vcf.gz",
+        hapmap=f"{BUNDLE}/hapmap_3.3.b37.vcf",
+        omni=f"{BUNDLE}/1000G_omni2.5.b37.vcf",
+        dbsnp=f"{BUNDLE}/dbsnp_138.b37.vcf",
+    output:
+        recal=f"{VCF_DIR}/cohort_chr{{num}}.snps.recal",
+        tranches=f"{VCF_DIR}/cohort_chr{{num}}.snps.tranches",
+    resources:
+        mem_mb=MEM["vsqr_snp"],
+    shell:
+        "gatk --java-options '-Xmx10g -Xms10g' VariantRecalibrator "
+        "-V {input.vcf} --trust-all-polymorphic "
+        "-tranche 100.0 -tranche 99.95 -tranche 99.9 -tranche 99.8 "
+        "-tranche 99.6 -tranche 99.5 -tranche 99.4 -tranche 99.3 "
+        "-tranche 99.0 -tranche 98.0 -tranche 97.0 -tranche 90.0 "
+        "-an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an SOR -an DP "
+        "-mode SNP --max-gaussians 6 "
+        "--resource:hapmap,known=false,training=true,truth=true,prior=15 {input.hapmap} "
+        "--resource:omni,known=false,training=true,truth=true,prior=12 {input.omni} "
+        "--resource:dbsnp,known=true,training=false,truth=false,prior=7 {input.dbsnp} "
+        "-O {output.recal} --tranches-file {output.tranches}"
+
+
+rule apply_vqsr_snp:
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.genotyped.vcf.gz",
+        recal=f"{VCF_DIR}/cohort_chr{{num}}.snps.recal",
+        tranches=f"{VCF_DIR}/cohort_chr{{num}}.snps.tranches",
+    output:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.recal.vcf.gz",
+    resources:
+        mem_mb=MEM["vsqr_snp"],
+    shell:
+        "gatk --java-options '-Xmx10g -Xms10g' ApplyVQSR -V {input.vcf} "
+        "--recal-file {input.recal} --tranches-file {input.tranches} "
+        "--truth-sensitivity-filter-level 99.7 "
+        "--create-output-variant-index true -mode SNP -O {output.vcf}"
+
+
+rule vsqr_indel:
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.genotyped.vcf.gz",
+        ref=REF,
+        mills=f"{BUNDLE}/Mills_and_1000G_gold_standard.indels.b37.vcf",
+        dbsnp=f"{BUNDLE}/dbsnp_138.b37.vcf",
+    output:
+        recal=f"{VCF_DIR}/cohort_chr{{num}}.indel.recal",
+        tranches=f"{VCF_DIR}/cohort_chr{{num}}.indel.tranches",
+    resources:
+        mem_mb=MEM["vsqr_indel"],
+    shell:
+        "gatk --java-options '-Xms10G -Xmx10G -XX:+UseParallelGC "
+        "-XX:ParallelGCThreads=1' VariantRecalibrator "
+        "-V {input.vcf} -R {input.ref} -mode INDEL "
+        "-tranche 100.0 -tranche 99.95 -tranche 99.9 -tranche 99.8 "
+        "-tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.4 "
+        "-tranche 99.3 -tranche 99.0 -tranche 98.0 -tranche 97.0 "
+        "-tranche 96.0 -tranche 95.0 -tranche 94.0 -tranche 93.5 "
+        "-tranche 93.0 -tranche 92.0 -tranche 91.0 -tranche 90.0 "
+        "-an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP "
+        "-O {output.recal} --tranches-file {output.tranches} "
+        "--resource:mills,known=false,training=true,truth=true,prior=12.0 {input.mills} "
+        "--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 {input.dbsnp} "
+        "--max-gaussians 4"
+
+
+rule apply_vqsr_indel:
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.recal.vcf.gz",
+        recal=f"{VCF_DIR}/cohort_chr{{num}}.indel.recal",
+        tranches=f"{VCF_DIR}/cohort_chr{{num}}.indel.tranches",
+    output:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.indels.recal.vcf.gz",
+    resources:
+        mem_mb=MEM["vsqr_indel"],
+    shell:
+        "gatk --java-options '-Xms10G -Xmx10G -XX:+UseParallelGC "
+        "-XX:ParallelGCThreads=1' ApplyVQSR -V {input.vcf} "
+        "--recal-file {input.recal} -mode INDEL "
+        "--tranches-file {input.tranches} "
+        "--truth-sensitivity-filter-level 99.7 "
+        "--create-output-variant-index true -O {output.vcf}"
+
+
+# =============================================================================
+# 3. Population-AF filter, then phasing
+# =============================================================================
+rule rename_af:
+    """Keep the GATK AF before ANNOVAR overwrites INFO/AF with gnomAD AF."""
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.indels.recal.vcf.gz",
+    output:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.indels.recal.AF.vcf.gz",
+    shell:
+        "bcftools annotate -c INFO/AF_gatk:=INFO/AF {input.vcf} "
+        "| bgzip -c > {output.vcf}; "
+        "bcftools index {output.vcf}"
+
+
+rule filter_population_af:
+    """Annotate gnomAD211 genome-wide AF and drop variants above 0.1%."""
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.snps.indels.recal.AF.vcf.gz",
+    output:
+        annovar=f"{VCF_DIR}/cohort_chr{{num}}.filter.hg19_multianno.vcf",
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.filter.AF.vcf.gz",
+        index=f"{VCF_DIR}/cohort_chr{{num}}.filter.AF.vcf.gz.csi",
+        header=f"{VCF_DIR}/cohort_chr{{num}}.header_annotation.txt",
+    params:
+        humandb=config["annovar_humandb"],
+        prefix=f"{VCF_DIR}/cohort_chr{{num}}.filter",
+    resources:
+        mem_mb=MEM["annovar"],
+    shell:
+        r"""
+        table_annovar.pl {input.vcf} {params.humandb} -buildver hg19 -out {params.prefix} -protocol gnomad211_genome -operation f -remove -nastring . -polish -vcfinput;
+        bcftools view -h {output.annovar} > {output.header};
+        sed -i 's/ID=AF,Number=\.,Type=String/ID=AF,Number=.,Type=Float/' {output.header};
+        bcftools reheader -h {output.header} {output.annovar} | bcftools view -i 'INFO/AF > 0.001' | bgzip -c > {output.vcf};
+        bcftools index {output.vcf};
+        """
+
+
+rule pr_flag_header:
+    """The PR (provisional reference allele) flag declaration that the ANNOVAR
+    round-trip above drops and Eagle 2.4 needs to parse the VCF."""
+    output:
+        f"{VCF_DIR}/pr_flag.hdr",
+    shell:
+        r"""printf '%s\n' '##INFO=<ID=PR,Number=0,Type=Flag,Description="Provisional reference allele, may not be based on real reference genome">' > {output}"""
+
+
+rule norm_for_eagle:
+    """Sample-level normalisation and the PASS SNP set handed to Eagle 2.4."""
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.filter.AF.vcf.gz",
+        header=f"{VCF_DIR}/cohort_chr{{num}}.header_annotation.txt",
+        pr_header=f"{VCF_DIR}/pr_flag.hdr",
+    output:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.norm.vcf.gz",
+    shell:
+        "bcftools annotate -h {input.pr_header} -h {input.header} "
+        "{input.vcf} "
+        "| bcftools norm -m-any "
+        "| bcftools view -f PASS -v snps "
+        "| bgzip -c > {output.vcf}"
+
+
+rule eagle2:
+    """Eagle 2.4 phasing, one chromosome per job. The output VCF is the
+    BayesMonSTR -p/-g input. Run without --vcfRef: adding the reference panel
+    caused 'too few overlapping markers' errors on these data."""
+    input:
+        vcf=f"{VCF_DIR}/cohort_chr{{num}}.norm.vcf.gz",
+        genetic_map=config["eagle_genetic_map"],
+    output:
+        vcf=f"{PHASED_DIR}/HC.chr{{num}}.phased.vcf.gz",
+    params:
+        eagle=config["eagle"],
+        out_prefix=f"{PHASED_DIR}/HC.chr{{num}}.phased",
+    threads: THREADS["eagle"]
+    resources:
+        mem_mb=MEM["eagle"],
+    log:
+        f"{LOG_DIR}/eagle2.chr{{num}}.log",
+    shell:
+        "{params.eagle} --vcf={input.vcf} "
+        "--geneticMapFile={input.genetic_map} --chrom={wildcards.num} "
+        "--outPrefix={params.out_prefix} --numThreads={threads} "
+        "2>&1 | tee {log}"
+
+
+rule tabix_phased:
+    input:
+        vcf=f"{PHASED_DIR}/HC.chr{{num}}.phased.vcf.gz",
+    output:
+        tbi=f"{PHASED_DIR}/HC.chr{{num}}.phased.vcf.gz.tbi",
+    shell:
+        "tabix -p vcf {input.vcf}"
+
+
+# =============================================================================
+# 4. metadata.csv for BayesMonSTR (-i)
+# =============================================================================
+rule metadata:
+    """Sample sheet plus the genome-wide mean depth from mosdepth, in the
+    column order BayesMonSTR metadata.csv expects."""
+    input:
+        expand(f"{DEPTH_DIR}/{{sample}}.mosdepth.summary.txt", sample=SAMPLES),
+    output:
+        f"{WORK}/metadata.csv",
+    run:
+        rows = []
+        for sample in SAMPLES:
+            summary = pd.read_csv(f"{DEPTH_DIR}/{sample}.mosdepth.summary.txt",
+                                  sep="\t")
+            dp = summary.loc[summary["chrom"] == "total", "mean"].iloc[0]
+            row = sheet.loc[sheet["sample"] == sample].iloc[0]
+            rows.append({"individual": row["individual"], "cell": sample,
+                         "type": row["type"], "dp": round(float(dp), 2),
+                         "path": bam_of(sample)})
+        pd.DataFrame(rows).to_csv(output[0], index=False)
