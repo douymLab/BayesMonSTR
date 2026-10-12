@@ -136,14 +136,14 @@ def init_args():
         "--unphase",
         type=str,
         default=None,
-        help="Unphase STR variant call output filename",
+        help="Unphase STR variant call output prefix, writes PREFIX.vcf and PREFIX.features.tsv",
     )
     parser.add_argument(
         "-O",
         "--vcf",
         type=str,
         default=None,
-        help="STR variant call output filename",
+        help="STR variant call output prefix, writes PREFIX.vcf and PREFIX.features.tsv",
     )
     parser.add_argument(
         "-V",
@@ -1026,8 +1026,9 @@ def main():
     # parallel settings
     if args.num_workers == 1:
         # vcf header
-        if args.vcf:
+        if args.vcf or args.unphase:
             vcf_processor.generate_vcf(args, info, [])
+        n_vcf_cols = vcf_processor.get_n_vcf_columns(info)
         # running
         init_time = time.time()
         for idx_rec, record in enumerate(ref_panel_dicts, start=1):
@@ -1064,13 +1065,9 @@ def main():
                         row = [stutter_data[0], stutter_data[1]]
                     csv_out.writerow(row)
             if args.vcf and vcf_data:
-                with open(args.vcf + ".vcf", "at", encoding="utf-8") as f:
-                    csv_out = csv.writer(f, delimiter="\t")
-                    csv_out.writerow(vcf_data)
+                vcf_processor.write_records(args.vcf, [vcf_data], n_vcf_cols)
             if args.unphase and vcf_data_un:
-                with open(args.unphase + ".vcf", "at", encoding="utf-8") as f:
-                    csv_out = csv.writer(f, delimiter="\t")
-                    csv_out.writerow(vcf_data_un)
+                vcf_processor.write_records(args.unphase, [vcf_data_un], n_vcf_cols)
             del stutter_data, vcf_data, vcf_data_un
             align_flk.cache_clear()
             align_ms.cache_clear()
@@ -1094,6 +1091,18 @@ def main():
                 for record in ref_panel_dicts
             ]
             results = [r.get() for r in res]
+            # re-call phasable loci without phasing, as in the single-worker path
+            vcf_data_un = []
+            if args.unphase:
+                res_un = [
+                    p.apply_async(
+                        scTRcaller,
+                        args=(args, info, record, None, is_denovo_stutter),
+                    )
+                    for record, (_, _, phasable) in zip(ref_panel_dicts, results)
+                    if phasable
+                ]
+                vcf_data_un = [r.get()[1] for r in res_un]
         stutter_data, vcf_data, phasable = zip(*results)  # re-write
 
         # gen stutter error model parameters
@@ -1101,15 +1110,8 @@ def main():
             bed_processor.generate_stutter(args, stutter_data)
 
         # gen vcf outputs
-        sample_names = []
-        for ind in info["individual"].unique():
-            sample_names.append(ind + "_" + "bulk")
-            df = info.loc[(info["individual"] == ind) & (info["type"] != "bulk")]
-            sample_names.extend(
-                [df["individual"][idx] + "_" + df["cell"][idx] for idx in df.index]
-            )
-        if args.vcf:
-            vcf_processor.generate_vcf(args, info, vcf_data)
+        if args.vcf or args.unphase:
+            vcf_processor.generate_vcf(args, info, vcf_data, vcf_data_un)
 
     logger.info("Ended: %s", time.strftime("%Y-%m-%d %H:%M:%S"))
 

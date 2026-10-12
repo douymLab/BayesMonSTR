@@ -129,8 +129,8 @@ options:
   -C, --coord           Do not use HMM segmentation
   -Q, --quiet           Avoid verbose output
   -U UNPHASE, --unphase UNPHASE
-                        Unphase STR variant call output filename
-  -O VCF, --vcf VCF     STR variant call output filename
+                        Unphase STR variant call output prefix, writes PREFIX.vcf and PREFIX.features.tsv
+  -O VCF, --vcf VCF     STR variant call output prefix, writes PREFIX.vcf and PREFIX.features.tsv
   -V, --version         show program's version number and exit
 ```
 
@@ -176,7 +176,10 @@ Path to the STR stutter error profile, e.g., stutter_GRCh37.csv. It is recommend
 
 #### -O VCF, --vcf VCF
 
-Path to STR variant calling output.
+Output prefix for STR variant calls. BayesMonSTR writes two files:
+
+- `PREFIX.vcf`: a standard VCFv4.2 file with genotypes, readable by `bcftools`, `pysam` and other VCF tools.
+- `PREFIX.features.tsv`: a tab-separated table with one row per locus, holding every VCF field plus the model features. This is the input for `mosaic.py`.
 
 #### -f FREQ, --freq FREQ
 
@@ -211,7 +214,7 @@ BayesMonSTR -b GRCh37_reference_STR.bed \
 mkdir -p results
 
 # run filtering for individual 1 (i.e., the first individual listed in metadata.csv)
-python ../scripts/mosaic.py --individual 1 -i str_gt.vcf -o results
+python ../scripts/mosaic.py --individual 1 -i str_gt.features.tsv -o results
 ```
 
 The final mosaic call set is provided in the `results/*.csv` files. Below is a description of key columns in these files:
@@ -228,22 +231,24 @@ The final mosaic call set is provided in the `results/*.csv` files. Below is a d
 | phase_filter/unphase_filter | Indicates whether the locus passed filtering (`True` for true loci).                                                             |
 | prediction                  | ML prediction results, (`mosaic` for true loci  )                                                                                |
 
-### Standard-compliant VCF
+### Output files
 
-`str_gt.vcf` carries the model feature columns needed by `mosaic.py`: an extra
-tabular header row follows `#CHROM`, and every record has those feature columns
-appended. Generic VCF readers (`pysam`, `bcftools`) reject that layout, so
-convert the file first:
+Genotyping writes `str_gt.vcf`, a standard VCF, and `str_gt.features.tsv`, the
+same records with the model features appended. `mosaic.py` reads
+`str_gt.features.tsv`; use `str_gt.vcf` with standard VCF tools.
 
-```shell
-# writes a standard VCF; the original file is left untouched
-python ../scripts/remove_header.py -i str_gt.vcf -o str_gt.standard.vcf
+`str_gt.vcf` can be read directly with `pysam`:
 
-# optionally keep the dropped feature columns in a separate TSV
-python ../scripts/remove_header.py -i str_gt.vcf -o str_gt.standard.vcf -f str_gt.features.tsv
+```python
+import pysam
+
+with pysam.VariantFile("str_gt.vcf") as vcf:
+    for rec in vcf:
+        print(rec.chrom, rec.pos, rec.id)
+
+# 16 72671356 Human_STR_545109
+# 2 140148286 Human_STR_777558
 ```
-
-Run `mosaic.py` on the original `str_gt.vcf`, not on the converted file.
 
 ## Docker
 
@@ -288,7 +293,7 @@ sudo docker run -it --rm \
     -w /demo \
     bayesmonstr \
     python /scripts/mosaic.py \
-        -i /results/str_gt.vcf \
+        -i /results/str_gt.features.tsv \
         -o /results
 ```
 

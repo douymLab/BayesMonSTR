@@ -10,7 +10,11 @@ def parse_args():
         description="Process mutation data and make predictions"
     )
     parser.add_argument(
-        "-i", "--input", type=str, required=True, help="Input"
+        "-i",
+        "--input",
+        type=str,
+        required=True,
+        help="Feature table (prefix.features.tsv)",
     )
     parser.add_argument(
         "-o", "--output", type=str, required=True, help="Output"
@@ -33,6 +37,15 @@ def load_models(unphase_model_path, phase_model_path):
         "unphase_model": joblib.load(unphase_model_path),
         "phase_model": joblib.load(phase_model_path),
     }
+
+
+def load_features(path):
+    if "chr" not in pd.read_csv(path, sep="\t", nrows=0).columns:
+        raise SystemExit(
+            f"{path} is not a feature table; pass the prefix.features.tsv "
+            "written next to the VCF"
+        )
+    return pd.read_csv(path, sep="\t")
 
 
 def process_data(df, models, individual):
@@ -95,7 +108,7 @@ def main():
 
     # Load input file
     print(f"Reading input file: {args.input}")
-    combined_df = pd.read_csv(args.input, sep="\t", comment="#")
+    combined_df = load_features(args.input)
 
     # Load models
     print("Loading models...")
@@ -130,4 +143,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python mosaic.py -i ../results/str_gt.vcf -o ../results
+# python mosaic.py -i ../results/str_gt.features.tsv -o ../results

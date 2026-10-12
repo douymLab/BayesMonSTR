@@ -14,35 +14,86 @@ from ..processing import bam_processor
 from ..utils import FLK_BP_SEG
 
 
-def generate_vcf(args, info, results):
-    """Generate VCF file
+def get_sample_names(info):
+    """Sample columns of the VCF: one bulk per individual, then its cells."""
+    sample_names = []
+    for ind in info["individual"].unique():
+        sample_names.append(ind + "_" + "Bulk")
+        df = info.loc[(info["individual"] == ind) & (info["type"] != "bulk")]
+        sample_names.extend(
+            [df["individual"][idx] + "_" + df["cell"][idx] for idx in df.index]
+        )
+    return sample_names
+
+
+def get_n_vcf_columns(info):
+    """Number of columns declared by #CHROM: 9 fixed fields plus samples."""
+    return 9 + len(get_sample_names(info))
+
+
+def write_records(prefix, results, n_vcf_cols):
+    """Append records to ``prefix.vcf`` and ``prefix.features.tsv``
+
+    The standard VCF gets the first ``n_vcf_cols`` fields of each record,
+    the feature table gets the whole record.
+
+    Parameters
+    ----------
+    prefix : `str`
+        Output prefix.
+    results : `list` of `list`
+        Variant calling information, one full record per locus.
+    n_vcf_cols : `int`
+        Number of columns declared by #CHROM.
+    """
+    results = [res for res in results if res]
+    if not results:
+        return
+    with open(prefix + ".vcf", "at", encoding="utf-8", newline="") as f_vcf, open(
+        prefix + ".features.tsv", "at", encoding="utf-8", newline=""
+    ) as f_tsv:
+        vcf_out = csv.writer(f_vcf, delimiter="\t", lineterminator="\n")
+        tsv_out = csv.writer(f_tsv, delimiter="\t", lineterminator="\n")
+        for res in results:
+            vcf_out.writerow(res[:n_vcf_cols])
+            tsv_out.writerow(res)
+
+
+def generate_vcf(args, info, results, results_un=None):
+    """Generate a standard VCF and a feature table per output prefix
+
+    ``args.vcf`` (and ``args.unphase`` if given) get ``prefix.vcf``, a
+    standard VCF, and ``prefix.features.tsv``, a TSV holding every VCF field
+    plus the model features used by ``mosaic.py``.
 
     Parameters
     ----------
     args : `argparse.Namespace`
         Input arguments.
-    sample_names : `list`
-        Sample names.
-    results : `list` of `tuple`
+    info : `pandas.DataFrame`
+        Sample information.
+    results : `list` of `list`
         Variant calling information.
+    results_un : `list` of `list`, optional
+        Unphase variant calling information.
     """
     metadata = (
         "##fileformat=VCFv4.2"
-        + os.linesep
+        + "\n"
         + "##fileDate="
         + date.today().strftime("%Y%m%d")
-        + os.linesep
+        + "\n"
         + "##source=BayesMonSTRV"
         + __VERSION__
-        + os.linesep
+        + "\n"
         + "##command="
         + " ".join(sys.argv)
-        + os.linesep
+        + "\n"
         + "##reference="
         + args.ref
-        # + os.linesep
+        # + "\n"
         # + "##contig=<ID=chr1,length=248956422>"  # to-do
-        + os.linesep
+        + "\n"
         + r"""##phasing=partial
 ##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
 ##INFO=<ID=DPSC,Number=1,Type=Integer,Description="Total Depth For Single Cell Samples">
@@ -66,17 +117,11 @@ def generate_vcf(args, info, results):
 """
     )
     n = len(info.individual.unique())
-    sample_names = []
-    for ind in info["individual"].unique():
-        sample_names.append(ind + "_" + "Bulk")
-        df = info.loc[(info["individual"] == ind) & (info["type"] != "bulk")]
-        sample_names.extend(
-            [df["individual"][idx] + "_" + df["cell"][idx] for idx in df.index]
-        )
+    sample_names = get_sample_names(info)
     header = (
         "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	"
         + "\t".join(sample_names)
-        + os.linesep
+        + "\n"
     )
     feat = (
         "rho_bulk_in",
@@ -387,22 +432,19 @@ def generate_vcf(args, info, results):
         + [f"phy_{i}" for i in range(1, n + 1)]
     )
 
-    dir_vcf = os.path.dirname(args.vcf)
-    if dir_vcf:
-        os.makedirs(dir_vcf, exist_ok=True)
-    with open(args.vcf + ".vcf", "wt", encoding="utf-8") as f:
-        f.write(metadata)
-        f.write(header)
-        csv_out = csv.writer(f, delimiter="\t")
-        csv_out.writerow(csv_info)
-        csv_out.writerows([res for res in results if res])
-    if args.unphase:
-        with open(args.unphase + ".vcf", "wt", encoding="utf-8") as f:
+    n_vcf_cols = 9 + len(sample_names)
+    for prefix, rows in ((args.vcf, results), (args.unphase, results_un or [])):
+        if not prefix:
+            continue
+        dir_vcf = os.path.dirname(prefix)
+        if dir_vcf:
+            os.makedirs(dir_vcf, exist_ok=True)
+        with open(prefix + ".vcf", "wt", encoding="utf-8", newline="") as f:
             f.write(metadata)
             f.write(header)
-            csv_out = csv.writer(f, delimiter="\t")
-            csv_out.writerow(csv_info)
-            csv_out.writerows([res for res in results if res])
+        with open(prefix + ".features.tsv", "wt", encoding="utf-8", newline="") as f:
+            csv.writer(f, delimiter="\t", lineterminator="\n").writerow(csv_info)
+        write_records(prefix, rows, n_vcf_cols)
 
 
 def get_vcf_header(info):
