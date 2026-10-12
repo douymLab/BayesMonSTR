@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import json
 import warnings
+from result_output import write_result_csv
 from variant_filtering import (
     add_filter_features,
     analyze_filters,
@@ -275,7 +276,6 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both', datas
         print(f"Result of all loci exits: {all_path}")
     else:
         df_processed = merge_csv_files(input_dir, output_file=None, recursive=True, file_suffix='_all.csv')
-        df_processed.to_csv(all_path, index=False)
         print(f"Result of all loci saved to: {all_path}")
     
     if filters_json is None:
@@ -285,7 +285,7 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both', datas
         df_processed['dataset'] = dataset
     if isinstance(filters, dict):
         df_processed = add_filter_features(df_processed, filters.get('mutation_type_map'))
-        df_processed.to_csv(all_path, index=False)
+    write_result_csv(df_processed, all_path)
     clean_df = apply_filter_config(
         df_processed,
         filters,
@@ -301,7 +301,7 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both', datas
         output_prefix=output_prefix,
         plot=False,
     )
-    clean_df.to_csv(f'{output_prefix}_clean.csv', index=False)
+    write_result_csv(clean_df, f'{output_prefix}_clean.csv')
     print(f"Filtering completed. Final result saved to: {output_prefix}_clean.csv")        
 
     basic_cols = ['chrom','reference_start_coordinate_1_based_include','reference_end_coordinate_1_based_include',
@@ -320,7 +320,7 @@ def run(input_dir, output_prefix, filters_json=None, mutation_type='both', datas
 
 
     df_all = merge_csv_files(input_dir, add_filename=True, recursive=True, file_suffix='_raw.bed')
-    df_all.to_csv(f"{output_prefix}_raw.csv",index=False)
+    write_result_csv(df_all, f"{output_prefix}_raw.csv")
 
     final_df = process_allele_df(df_all)
     final_df_group = final_df.groupby(['sample','barcode']).agg(
