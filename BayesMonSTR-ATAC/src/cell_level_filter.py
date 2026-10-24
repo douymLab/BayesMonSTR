@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 import warnings
 from variant_filtering import add_filter_features, analyze_filters, apply_filter_config, load_filter_config
+from result_output import write_result_csv
 
 
 def determine_muttype2(df):
@@ -421,8 +422,8 @@ def run_cell_level_filter(
         clean_df = clean_df[clean_df['barcode_count_mosaic'] > 1]
 
     if save_intermediate:
-        df_processed.to_csv(f'{output_prefix}_all.csv', index=False)
-        clean_df.to_csv(f'{output_prefix}_clean.csv', index=False)
+        write_result_csv(df_processed, f'{output_prefix}_all.csv')
+        write_result_csv(clean_df, f'{output_prefix}_clean.csv')
         print(f"Filtering completed. Final result saved to: {output_prefix}_clean.csv")        
 
     basic_cols = ['chrom','reference_start_coordinate_1_based_include','reference_end_coordinate_1_based_include',
