@@ -14,11 +14,13 @@ Version: ${IMAGE_VERSION}
 Usage:
   bayesmonstr ...        Run BayesMonSTR
   bayesmonstr-atac ...   Run BayesMonSTR-ATAC
+  python ...             Run Python in the BayesMonSTR environment
   bash / sh              Open a shell
 
 Examples:
   docker run --rm bayesmonstr bayesmonstr --help
   docker run --rm bayesmonstr bayesmonstr-atac --help
+  docker run --rm bayesmonstr python -c 'import pandas; print(pandas.__version__)'
   docker run --rm -it bayesmonstr
 EOF
 }
@@ -37,6 +39,9 @@ case "$cmd" in
     ;;
   bayesmonstr-atac)
     exec micromamba run -n "${ENV_ATAC}" bayesmonstr-atac "$@"
+    ;;
+  python|python3)
+    exec micromamba run -n "${ENV_BAYES}" python "$@"
     ;;
   help|-h|--help)
     print_help

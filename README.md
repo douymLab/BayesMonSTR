@@ -97,7 +97,8 @@ sudo docker run -it --rm \
     -w /demo \
     bayesmonstr \
     python /scripts/mosaic.py \
-        -i /results/str_gt.vcf \
+        --individual 1 \
+        -i /results/str_gt.features.tsv \
         -o /results
 ```
 

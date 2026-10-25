@@ -259,7 +259,8 @@ build docker image by
 ```shell
 git clone https://github.com/douymLab/BayesMonSTR.git
 
-cd BayesMonSTR/docker
+# enter the BayesMonSTR/ subdirectory (the Docker build context)
+cd BayesMonSTR/BayesMonSTR
 
 sudo docker build -f docker/Dockerfile -t bayesmonstr .
 ```
