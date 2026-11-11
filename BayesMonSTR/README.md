@@ -252,9 +252,15 @@ with pysam.VariantFile("str_gt.vcf") as vcf:
 
 ## Docker
 
-BayesMonSTR can be ran with Docker as well.
+This image contains BayesMonSTR only.
 
-build docker image by
+Pull the prebuilt image:
+
+```shell
+docker pull wenx00/bayesmonstr:latest
+```
+
+Or build it locally from this directory:
 
 ```shell
 git clone https://github.com/douymLab/BayesMonSTR.git
@@ -262,16 +268,16 @@ git clone https://github.com/douymLab/BayesMonSTR.git
 # enter the BayesMonSTR/ subdirectory (the Docker build context)
 cd BayesMonSTR/BayesMonSTR
 
-sudo docker build -f docker/Dockerfile -t bayesmonstr .
+docker build -f docker/Dockerfile -t bayesmonstr .
 ```
 
-run BayesMonSTR by
+Download the GRCh37 reference into `demo/` if it is not already there (see [Resource](#resource)), then run the demo:
 
 ```shell
 mkdir -p results
 
 # run genotyping
-sudo docker run -it --rm \
+docker run -it --rm \
     -v ./demo/:/demo \
     -v ./results:/results \
     -w /demo \
@@ -288,12 +294,13 @@ sudo docker run -it --rm \
         -O /results/str_gt
 
 # run filtering
-sudo docker run -it --rm \
+docker run -it --rm \
     -v ./demo/:/demo \
     -v ./results:/results \
     -w /demo \
     bayesmonstr \
     python /scripts/mosaic.py \
+        --individual 1 \
         -i /results/str_gt.features.tsv \
         -o /results
 ```
