@@ -397,6 +397,7 @@ def mosaic_fraction_estimate_prepare(parsed_options):
             bam.split("/")[-1].split(".")[0] for bam in bam_files
         ]
     mosaic_fraction_all_params["bam_name"] = sample_name_list
+    mosaic_fraction_all_params["wgs_depth"] = list(metadata.iloc[:, 5])
     genome_wide_info_dict["sample_name_list"] = sample_name_list
 
     log_dir = parsed_options.output_dir + "/mosaic_fraction_estimation_log"
@@ -1218,6 +1219,7 @@ def pacbio_phasing(
 def main_per_locus_estimation(parse_params, pysam_bed_row):
     # zero_based_snp_pos = parse_params["zero_based_snp_pos"]
     fasta_file = parse_params["fasta_file"]
+    wgs_depth_list = parse_params["wgs_depth"]
     pysam_fasta = pysam.FastaFile(fasta_file)
     bam_name = parse_params["bam_name"]
     add_chr_character = parse_params["add_chr_character"]
@@ -1598,6 +1600,13 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                     bamfile_nopysam, "rc", reference_filename=fasta_file
                 )
             sample_seq_method = sequencing_method[seq_index]
+            sample_depth = wgs_depth_list[seq_index]
+            other_params["wgs_depth"] = float(sample_depth)
+            max_usable_reads = int(min(
+                mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH,
+                mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH_FOLD * other_params["wgs_depth"],
+            ))
+            other_params["depth_truncated"] = False
             seq_index += 1
             alleles_depth_dict = {}
             sample_fail_reads_dict = defaultdict(int)
@@ -1633,6 +1642,14 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                             seg_locus, read
                         )
                     if readsegger.is_usable:
+                        # Confirm overflow before adding this read to any evidence.
+                        if len(reads_list) >= max_usable_reads:
+                            other_params["depth_truncated"] = True
+                            logger_mosaic.info(
+                                "Usable-depth cap exceeded: sample=%s locus=%s retained=%d limit=%d",
+                                bamname, seg_locus.STR_id, len(reads_list), max_usable_reads,
+                            )
+                            break
                         if read.has_tag("HP"):
                             HP_tag_dict[read.query_name] = str(
                                 read.get_tag("HP")

@@ -1,7 +1,39 @@
 from scipy import stats
 import numpy as np
 from scipy.stats import geom
-from scipy.special import logsumexp
+from scipy.special import logsumexp as scipy_logsumexp
+
+
+def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
+    # Fast paths are limited to scalar, real-valued inputs used in the hot loop.
+    if axis is None and not keepdims and not return_sign:
+        try:
+            n = len(a)
+        except TypeError:
+            n = 0
+        if n == 1 and b is None and np.isscalar(a[0]) and np.isrealobj(a[0]):
+            return a[0]
+        if n == 2 and all(np.isscalar(x) and np.isrealobj(x) for x in a):
+            if b is None:
+                return logsumexp2_weighted(a[0], a[1], 1, 1)
+            if np.ndim(b) == 1 and len(b) == 2:
+                return logsumexp2_weighted(a[0], a[1], b[0], b[1])
+    return scipy_logsumexp(a, axis=axis, b=b, keepdims=keepdims, return_sign=return_sign)
+
+
+def logsumexp2_weighted(x, y, bx, by):
+    if not (np.isrealobj(bx) and np.isrealobj(by)
+            and np.isfinite(x) and np.isfinite(y) and np.isfinite(bx)
+            and np.isfinite(by) and bx >= 0 and by >= 0):
+        return scipy_logsumexp([x, y], b=[bx, by])
+    if bx == 0:
+        return scipy_logsumexp([x, y], b=[bx, by]) if by == 0 else y + np.log(by)
+    if by == 0:
+        return x + np.log(bx)
+    m = x if x > y else y
+    return m + np.log(bx * np.exp(x - m) + by * np.exp(y - m))
+
+
 from scipy.optimize import minimize
 import logging
 
@@ -192,6 +224,7 @@ ALLELE_DEPTH_CUTOFF = 2
 MAX_ALLELE_CLUSTER_NUM = 5
 MAX_ALLOWABLE_ALLELE_NUM_BEFORE_FEATURE = 20
 MAX_LOCI_DEPTH = 1000
+MAX_LOCI_DEPTH_FOLD = 8
 MIS_NUM_TOLERENT = 100  # HACK: Change from 5 to 100 to tolerent more random recurrent mismatches # HACK: Change from 2 to 5 for filtering the hap with more random recurrent mismatches, observed from complex mutation types with multiple sequencing errors are called out #
 STRAND_BIAS_DEPTH_CUTOFF = 5  # 0.03125 小概率事件,(1/2)^5
 OBSERVE_SF_CUTOFF = 0.99
@@ -344,6 +377,8 @@ class MosaicFractionPerSampleEstimator:
         )
         self.locus_infos = locus_infos
         self.other_params = other_params
+        self.sample_wgs_depth = other_params["wgs_depth"]
+        self.depth_truncated = bool(other_params.get("depth_truncated", False))
         if ALLELE_FILTER:
             self.allele_filter()
         else:
@@ -1234,8 +1269,10 @@ class MosaicFractionPerSampleEstimator:
 
     def check_loci_callable(self):
         # TODO: Add Max Coverage and Min Coverage Filter, Done #
-        coverage_state = (self.reads_number < MIN_AVERAGE_COVERAGE) or (
+        coverage_state = self.depth_truncated or (self.reads_number < MIN_AVERAGE_COVERAGE) or (
             self.reads_number > MAX_LOCI_DEPTH
+        ) or (
+            self.reads_number > MAX_LOCI_DEPTH_FOLD * self.sample_wgs_depth
         )
         alleles_number_state = self.alleles_number_used_for_gt <= 1
         if coverage_state:
@@ -1427,11 +1464,24 @@ class MosaicFractionPerSampleEstimator:
         self.all_reads_all_gts_log_lik_array = np.zeros(
             (len(self.reads_list), len(self.genotypes)), dtype=np.float64
         )
-        for read_index, read in enumerate(self.reads_list):
-            for gt_index, gt in enumerate(self.genotypes):
-                self.all_reads_all_gts_log_lik_array[
-                    read_index, gt_index
-                ] = self.cal_per_read_given_gt_log_lik(read_index, gt)
+        source = self.all_reads_all_alleles_log_lik_array
+        if np.isfinite(source).all():
+            # Same scalar arithmetic and iteration order as logsumexp2_weighted.
+            exp, log = np.exp, np.log
+            for read_index in range(len(self.reads_list)):
+                row = source[read_index]
+                for gt_index, (a, b) in enumerate(self.genotypes):
+                    x, y = row[a], row[b]
+                    m = x if x > y else y
+                    self.all_reads_all_gts_log_lik_array[read_index, gt_index] = (
+                        m + log(0.5 * exp(x - m) + 0.5 * exp(y - m))
+                    )
+        else:
+            for read_index, read in enumerate(self.reads_list):
+                for gt_index, gt in enumerate(self.genotypes):
+                    self.all_reads_all_gts_log_lik_array[
+                        read_index, gt_index
+                    ] = self.cal_per_read_given_gt_log_lik(read_index, gt)
         # XXX: per-read likelihood calculation and gt likelihood calculation
         self.all_gts_log_lik_array = np.sum(
             self.all_reads_all_gts_log_lik_array, axis=0
@@ -2908,9 +2958,16 @@ class MosaicFractionPerSampleEstimator:
 
     def cal_mosaic_gt_log_lik(self, mosaic_gt, mosaic_fraction):
         per_read_mosaic_gt_log_lik_list = []
+        germ_cells_index = mosaic_gt[0]
+        mut_cells_index = mosaic_gt[1]
+        germ_weight = 1 - mosaic_fraction
+        mut_weight = mosaic_fraction
         for read_index, _ in enumerate(self.reads_list):
-            read_mosaic_gt_log_lik = self.cal_per_read_given_mosaic_gt_log_lik(
-                read_index, mosaic_gt, mosaic_fraction
+            read_mosaic_gt_log_lik = logsumexp2_weighted(
+                self.all_reads_all_gts_log_lik_array[read_index, germ_cells_index],
+                self.all_reads_all_gts_log_lik_array[read_index, mut_cells_index],
+                germ_weight,
+                mut_weight,
             )
             per_read_mosaic_gt_log_lik_list.append(read_mosaic_gt_log_lik)
         mosaic_gt_log_lik = np.sum(per_read_mosaic_gt_log_lik_list)
