@@ -378,6 +378,7 @@ class MosaicFractionPerSampleEstimator:
         self.locus_infos = locus_infos
         self.other_params = other_params
         self.sample_wgs_depth = other_params["wgs_depth"]
+        self.max_locus_depth = other_params.get("max_locus_depth", MAX_LOCI_DEPTH)
         self.depth_truncated = bool(other_params.get("depth_truncated", False))
         if ALLELE_FILTER:
             self.allele_filter()
@@ -1270,7 +1271,7 @@ class MosaicFractionPerSampleEstimator:
     def check_loci_callable(self):
         # TODO: Add Max Coverage and Min Coverage Filter, Done #
         coverage_state = self.depth_truncated or (self.reads_number < MIN_AVERAGE_COVERAGE) or (
-            self.reads_number > MAX_LOCI_DEPTH
+            self.reads_number > self.max_locus_depth
         ) or (
             self.reads_number > MAX_LOCI_DEPTH_FOLD * self.sample_wgs_depth
         )

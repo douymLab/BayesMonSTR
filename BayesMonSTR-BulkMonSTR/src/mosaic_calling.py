@@ -322,6 +322,15 @@ E-Mail: "18829352615@163.com"'
     # Other optional arguments
     other_optional_args = parser.add_argument_group("Other optional arguments")
     other_optional_args.add_argument(
+        "--max-locus-depth",
+        type=int,
+        default=mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH,
+        help=(
+            "Maximum usable reads retained per sample/locus; the effective "
+            "limit is min(this value, 8 times the sample WGS depth)"
+        ),
+    )
+    other_optional_args.add_argument(
         "-c", "--chrom", type=str, default="", help="Selected chromosome"
     )
     other_optional_args.add_argument(
@@ -358,6 +367,8 @@ E-Mail: "18829352615@163.com"'
     )
     # Parse the command-line arguments
     options = parser.parse_args(args)
+    if options.max_locus_depth < 1:
+        parser.error("--max-locus-depth must be a positive integer")
     return options
 
 
@@ -398,6 +409,9 @@ def mosaic_fraction_estimate_prepare(parsed_options):
         ]
     mosaic_fraction_all_params["bam_name"] = sample_name_list
     mosaic_fraction_all_params["wgs_depth"] = list(metadata.iloc[:, 5])
+    mosaic_fraction_all_params["max_locus_depth"] = getattr(
+        parsed_options, "max_locus_depth", mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH
+    )
     genome_wide_info_dict["sample_name_list"] = sample_name_list
 
     log_dir = parsed_options.output_dir + "/mosaic_fraction_estimation_log"
@@ -1602,8 +1616,11 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
             sample_seq_method = sequencing_method[seq_index]
             sample_depth = wgs_depth_list[seq_index]
             other_params["wgs_depth"] = float(sample_depth)
+            other_params["max_locus_depth"] = parse_params.get(
+                "max_locus_depth", mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH
+            )
             max_usable_reads = int(min(
-                mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH,
+                other_params["max_locus_depth"],
                 mosaic_fraction_estimation_unphase.MAX_LOCI_DEPTH_FOLD * other_params["wgs_depth"],
             ))
             other_params["depth_truncated"] = False
