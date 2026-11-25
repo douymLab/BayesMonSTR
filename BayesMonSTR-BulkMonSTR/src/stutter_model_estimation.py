@@ -22,6 +22,38 @@ import estimate_noise
 from multiprocessing import Pool, Manager
 from tqdm import tqdm
 import traceback
+import atexit
+
+
+_FASTA_HANDLES = {}
+_ALIGNMENT_HANDLES = {}
+
+
+def _cached_fasta(path):
+    key = (os.getpid(), path)
+    if key not in _FASTA_HANDLES:
+        _FASTA_HANDLES[key] = pysam.FastaFile(path)
+    return _FASTA_HANDLES[key]
+
+
+def _cached_alignment(path, reference):
+    key = (os.getpid(), path, reference)
+    if key not in _ALIGNMENT_HANDLES:
+        if "bam" in path:
+            _ALIGNMENT_HANDLES[key] = pysam.AlignmentFile(path, "rb")
+        else:
+            _ALIGNMENT_HANDLES[key] = pysam.AlignmentFile(path, "rc", reference_filename=reference)
+    return _ALIGNMENT_HANDLES[key]
+
+
+def _close_cached_handles():
+    for handle in list(_FASTA_HANDLES.values()) + list(_ALIGNMENT_HANDLES.values()):
+        handle.close()
+    _FASTA_HANDLES.clear()
+    _ALIGNMENT_HANDLES.clear()
+
+
+atexit.register(_close_cached_handles)
 
 __VERSION__ = "0.1"
 DEBUG = False  # False
@@ -156,6 +188,12 @@ E-Mail: "18829352615@163.com"'
     # Other optional arguments
     other_optional_args = parser.add_argument_group("Other optional arguments")
     other_optional_args.add_argument(
+        "--max-sample-depth",
+        type=int,
+        default=1000,
+        help="Maximum usable reads retained per sample and STR locus",
+    )
+    other_optional_args.add_argument(
         "-c", "--chrom", type=str, default="", help="Selected chromosome"
     )
     other_optional_args.add_argument(
@@ -192,6 +230,8 @@ E-Mail: "18829352615@163.com"'
     )
     # Parse the command-line arguments
     options = parser.parse_args(args)
+    if options.max_sample_depth < 1:
+        parser.error("--max-sample-depth must be a positive integer")
     return options
 
 
@@ -507,7 +547,8 @@ class stutter_estimate_prepare:
 
 def main_per_locus_estimation(parse_params, pysam_bed_row):
     fasta_file = parse_params["fasta_file"]
-    pysam_fasta = pysam.FastaFile(fasta_file)
+    max_sample_depth = parse_params.get("max_sample_depth", 1000)
+    pysam_fasta = _cached_fasta(fasta_file)
     bam_name = parse_params["bam_name"]
     add_chr_character = parse_params["add_chr_character"]
     remove_chr_character = parse_params["remove_chr_character"]
@@ -553,11 +594,9 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
         else:
             chrom = seg_locus.chrom
         for bamname, bamfile_nopysam in zip(bam_name, pysam_bam):
-            if "bam" in bamfile_nopysam:
-                bamfile = pysam.AlignmentFile(bamfile_nopysam, "rb")
-            else:
-                bamfile = pysam.AlignmentFile(bamfile_nopysam, "rc", reference_filename=fasta_file)
+            bamfile = _cached_alignment(bamfile_nopysam, fasta_file)
             all_samples_all_alleles_dict[bamname] = {}
+            sample_usable_depth = 0
             for read in bamfile.fetch(chrom, seg_locus.start, seg_locus.end):
                 all_samples_dp += 1
                 per_read_feature = extract_allele.PerReadFeature(
@@ -592,6 +631,9 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                 )
                                 + 1
                             )
+                        sample_usable_depth += 1
+                        if sample_usable_depth >= max_sample_depth:
+                            break
                     else:
                         all_samples_fail_reads_dict[
                             readsegger.unusable_reason
@@ -607,6 +649,7 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
         # other_params["loglevel"] = parse_params["loglevel"]
         # other_params["log_to_file"] = parse_params["log_to_file"]
         other_params["logger_object"] = logger_stutter
+        other_params["max_sample_depth"] = max_sample_depth
         other_params["total_unfiltered_depth"] = all_samples_dp
         other_params["fail_reason_reads_number"] = {}
         other_params["fail_reason_reads_number"][
@@ -781,6 +824,7 @@ if DEBUG:
             "remove_chr_character"
         ] = stutter_estimate_prep.remove_chr_character
         per_locus_parse_params["bam_files"] = stutter_estimate_prep.bam_files
+        per_locus_parse_params["max_sample_depth"] = getattr(stutter_estimate_prep.parse_params, "max_sample_depth", 1000)
         per_locus_parse_params["sex"] = stutter_estimate_prep.sex
         per_locus_parse_params[
             "stutter_file"
@@ -849,6 +893,7 @@ else:
             "remove_chr_character"
         ] = stutter_estimate_prep.remove_chr_character
         per_locus_parse_params["bam_files"] = stutter_estimate_prep.bam_files
+        per_locus_parse_params["max_sample_depth"] = getattr(stutter_estimate_prep.parse_params, "max_sample_depth", 1000)
         per_locus_parse_params["sex"] = stutter_estimate_prep.sex
         per_locus_parse_params[
             "stutter_file"

@@ -130,6 +130,17 @@ class NoiseEstimator:
         self.raw_samples_number = len(
             all_samples_all_alleles_depth_dict.keys()
         )  # XXX: primary samples number
+        # Use retained usable-read counts before pseudocounts or sample/allele filters.
+        self.max_sample_depth = other_params.get("max_sample_depth")
+        self.high_depth_sample_number = (
+            sum(sum(depth.values()) > self.max_sample_depth - 5
+                for depth in all_samples_all_alleles_depth_dict.values())
+            if self.max_sample_depth is not None else 0
+        )
+        self.high_depth_sample_fraction = (
+            self.high_depth_sample_number / self.raw_samples_number
+            if self.raw_samples_number else 0.0
+        )
         raw_alleles_order = list(
             pd.DataFrame(all_samples_all_alleles_depth_dict).fillna(0.0).index
         )
@@ -526,6 +537,30 @@ class NoiseEstimator:
                 ]
         return per_read_log_ll
 
+    def _get_allele_log_likelihood_vectors(self):
+        state = getattr(self, "_allele_ll_state", None)
+        motif_length = self.locus_infos["motif_length"]
+        if (state is None
+                or state[0] is not self.inframe_stutter_model_dict
+                or state[1] is not self.outframe_stutter_model_dict
+                or state[2] is not self.alleles_order
+                or state[3] != motif_length):
+            # Retain the original scalar calculations; invalidate every model update.
+            self._allele_ll_vectors = [
+                np.array([
+                    self.calc_per_read_log_likelihood_given_allele(allele, read)
+                    for read in self.alleles_order
+                ])
+                for allele in self.alleles_order
+            ]
+            self._allele_ll_state = (
+                self.inframe_stutter_model_dict,
+                self.outframe_stutter_model_dict,
+                self.alleles_order,
+                motif_length,
+            )
+        return self._allele_ll_vectors
+
     def calc_all_reads_log_likelihood_given_allele(self):
         # BUG: Notice that (A+B)**a > (A**a+B**a): HAS SOLVED
         # BUG: Notice that needs add read assignment probability calculation: HAS SOLVED
@@ -536,14 +571,7 @@ class NoiseEstimator:
             for allele_index, allele_str_length in enumerate(
                 self.alleles_order
             ):  # enumerate is 0-based index
-                per_pseudo_read_log_ll = np.array(
-                    [
-                        self.calc_per_read_log_likelihood_given_allele(
-                            allele_str_length, pseudo_read_str_length
-                        )
-                        for pseudo_read_str_length in self.alleles_order
-                    ]
-                )
+                per_pseudo_read_log_ll = self._get_allele_log_likelihood_vectors()[allele_index]
                 per_pseudo_read_log_ll = per_pseudo_read_log_ll.reshape(
                     len(per_pseudo_read_log_ll), 1
                 )
@@ -557,31 +585,14 @@ class NoiseEstimator:
             all_samples_all_gts_log_ll = np.zeros(
                 (self.samples_number, self.gt_number), dtype=np.float64
             )  # Dimension tuple as parameter
+            likelihood_vectors = self._get_allele_log_likelihood_vectors()
             for gt_index, gt in enumerate(
                 self.gt_combinations_list
             ):  # enumerate is 0-based index
                 allele1_str_length = self.alleles_order[gt[0]]
                 allele2_str_length = self.alleles_order[gt[1]]
-                per_pseudo_read_log_ll_given_allele1 = np.array(
-                    [
-                        [
-                            self.calc_per_read_log_likelihood_given_allele(
-                                allele1_str_length, pseudo_read_str_length
-                            )
-                            for pseudo_read_str_length in self.alleles_order
-                        ]
-                    ]
-                ).T
-                per_pseudo_read_log_ll_given_allele2 = np.array(
-                    [
-                        [
-                            self.calc_per_read_log_likelihood_given_allele(
-                                allele2_str_length, pseudo_read_str_length
-                            )
-                            for pseudo_read_str_length in self.alleles_order
-                        ]
-                    ]
-                ).T
+                per_pseudo_read_log_ll_given_allele1 = likelihood_vectors[gt[0]].reshape(-1, 1)
+                per_pseudo_read_log_ll_given_allele2 = likelihood_vectors[gt[1]].reshape(-1, 1)
                 per_samples_per_pseudo_read_log_ll = logsumexp(
                     [
                         per_pseudo_read_log_ll_given_allele1,
@@ -718,6 +729,7 @@ class NoiseEstimator:
                 )
             )
         elif self.locus_infos["ploidy"] == 2:
+            likelihood_vectors = self._get_allele_log_likelihood_vectors()
             bp_difference_of_dip_gt_samples_all_params_add_depth_array = (
                 np.zeros((self.gt_number, self.samples_number, 7)).astype(
                     np.float64
@@ -728,22 +740,8 @@ class NoiseEstimator:
                 # BUG: Notice that I needs add read assignment probability calculation: HAS SOLVED
                 allele1_str_length = self.alleles_order[allele_1_index]
                 allele2_str_length = self.alleles_order[allele_2_index]
-                per_pseudo_read_log_ll_given_allele1 = np.array(
-                    [
-                        self.calc_per_read_log_likelihood_given_allele(
-                            allele1_str_length, pseudo_read_str_length
-                        )
-                        for pseudo_read_str_length in self.alleles_order
-                    ]
-                )
-                per_pseudo_read_log_ll_given_allele2 = np.array(
-                    [
-                        self.calc_per_read_log_likelihood_given_allele(
-                            allele2_str_length, pseudo_read_str_length
-                        )
-                        for pseudo_read_str_length in self.alleles_order
-                    ]
-                )
+                per_pseudo_read_log_ll_given_allele1 = likelihood_vectors[allele_1_index]
+                per_pseudo_read_log_ll_given_allele2 = likelihood_vectors[allele_2_index]
                 samples_alleles_per_pseudo_read_prior_ll_given_allele1 = (
                     self.diploid_allele_imbalance_af_h1[:, np.newaxis]
                     * np.exp(per_pseudo_read_log_ll_given_allele1)
@@ -1204,6 +1202,15 @@ class NoiseEstimator:
             # samples number depth and stutter
             # samples number and depth fails prior,if fails,use default stutter model
             # then success,if no stutter,use low stutter model
+            if self.high_depth_sample_fraction > 0.8:
+                self.other_params["logger_object"].info(
+                    "High-depth CoverageFail for %s: %d/%d samples have retained usable depth > %d (fraction=%s)",
+                    self.locus_infos["STR_id"], self.high_depth_sample_number,
+                    self.raw_samples_number, self.max_sample_depth - 5,
+                    self.high_depth_sample_fraction,
+                )
+                self.locus_state = "CoverageFail"
+                return
             if self.samples_number < SAMPLE_NUMBER_CUTOFF:
                 self.other_params["logger_object"].info(
                     f"{self.locus_infos['STR_id']} has a sample number less"
