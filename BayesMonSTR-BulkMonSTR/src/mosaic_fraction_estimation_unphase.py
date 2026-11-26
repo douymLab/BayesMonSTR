@@ -5,30 +5,47 @@ from scipy.special import logsumexp as scipy_logsumexp
 
 
 def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
-    # Fast paths are limited to scalar, real-valued inputs used in the hot loop.
     if axis is None and not keepdims and not return_sign:
         try:
             n = len(a)
         except TypeError:
-            n = 0
-        if n == 1 and b is None and np.isscalar(a[0]) and np.isrealobj(a[0]):
+            return a
+        if n == 1 and b is None:
             return a[0]
-        if n == 2 and all(np.isscalar(x) and np.isrealobj(x) for x in a):
+        if n == 2:
+            x = a[0]
+            y = a[1]
             if b is None:
-                return logsumexp2_weighted(a[0], a[1], 1, 1)
-            if np.ndim(b) == 1 and len(b) == 2:
-                return logsumexp2_weighted(a[0], a[1], b[0], b[1])
+                if x == -np.inf:
+                    return y
+                if y == -np.inf:
+                    return x
+                m = x if x > y else y
+                return m + np.log(np.exp(x - m) + np.exp(y - m))
+            if len(b) == 2:
+                bx = b[0]
+                by = b[1]
+                if bx == 0:
+                    return y + np.log(by)
+                if by == 0:
+                    return x + np.log(bx)
+                if x == -np.inf:
+                    return y + np.log(by)
+                if y == -np.inf:
+                    return x + np.log(bx)
+                m = x if x > y else y
+                return m + np.log(bx * np.exp(x - m) + by * np.exp(y - m))
     return scipy_logsumexp(a, axis=axis, b=b, keepdims=keepdims, return_sign=return_sign)
 
 
 def logsumexp2_weighted(x, y, bx, by):
-    if not (np.isrealobj(bx) and np.isrealobj(by)
-            and np.isfinite(x) and np.isfinite(y) and np.isfinite(bx)
-            and np.isfinite(by) and bx >= 0 and by >= 0):
-        return scipy_logsumexp([x, y], b=[bx, by])
     if bx == 0:
-        return scipy_logsumexp([x, y], b=[bx, by]) if by == 0 else y + np.log(by)
+        return y + np.log(by)
     if by == 0:
+        return x + np.log(bx)
+    if x == -np.inf:
+        return y + np.log(by)
+    if y == -np.inf:
         return x + np.log(bx)
     m = x if x > y else y
     return m + np.log(bx * np.exp(x - m) + by * np.exp(y - m))
