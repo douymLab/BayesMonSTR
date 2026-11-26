@@ -383,6 +383,7 @@ class PerReadFeature:
         else:
             self.is_usable = False
             self.unusable_reason = "unmap_issue"
+            self.read_spanning = 0  # HACK: Resolving reads without MD is required
             return
         if PCRLibrary == "PCR":
             self.read_is_duplicate = int(self.pysam_read.is_duplicate)

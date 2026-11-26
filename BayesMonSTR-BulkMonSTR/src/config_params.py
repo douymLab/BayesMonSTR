@@ -137,6 +137,7 @@ MOSAIC_FRACTION_ESTIMATION_PARAMS = {
     "BIG_STUTTER_SIZE": {1: 20, 2: 10, 3: 10, 4: 9, 5: 8, 6: 7},
     "BIG_STUTTER_DEPTH_CUTOFF": 1,
     "double_het_comba_2x_prob": False,  # TODO: I need calculation heteryzygous with a 2x lik than hom 1x lik ???
+    "MAX_ITER_TIME": 3600
 }
 
 PRIOR = {

@@ -1541,6 +1541,10 @@ def avoid_zero_divide_error(dividend, divisor):
         return dividend/divisor
 
 
+def timeout_handler(signum, frame):
+    raise TimeoutError("TimeoutError")
+
+
 ## 当 allele 深度较低的时候，这些 allele 容易被过滤掉，所以再次调整门槛 ##
 ## HACK: 先进行修改，depth = 2 时候 mismatches 如果有一条 low baseQ，则不会被过滤 ##
 ## 修改: 从 >= 改为 > ##

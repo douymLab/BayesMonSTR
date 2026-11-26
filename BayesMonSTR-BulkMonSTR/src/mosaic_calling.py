@@ -30,6 +30,7 @@ import traceback
 import output_vcf
 import logger_config
 from scipy.special import logsumexp
+import signal
 
 DEBUG = False
 SINGLETHREAD = True
@@ -42,6 +43,7 @@ SNP_SPANNING_RANGE = PHASING_PARAMS["SNP_SPANNING_RANGE"]  # 1000
 LIKELIHOOD_MODE = MOSAIC_FRACTION_ESTIMATION_PARAMS[
     "likelihood_mode"
 ]  # "seq-based"
+MAX_ITER_TIME = MOSAIC_FRACTION_ESTIMATION_PARAMS["MAX_ITER_TIME"] # 3600s
 EXCLUDED_SNP_FLANKING_LENGTH = PHASING_PARAMS[
     "EXCLUDED_SNP_FLANKING_LENGTH"
 ]  # 15
@@ -1949,418 +1951,499 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                         "ALLSINGLE"
                     ] = "all_singleton_obs_allele"
             if unphase_calling.callable:
-                unphase_calling.mosaic_fraction_estimation()
-                (
-                    MaxMosaicGT_for_output,
-                    MaxMosaicLogPosterior,
-                    MaxMosaicLogLik,
-                    SecondMosaicGT_for_output,
-                    SecondMosaicLogPosterior,
-                    SecondMosaicLogLik,
-                    GermlineGT_for_output,
-                    GermlineLogPosterior,
-                    GermlineLogLik,
-                    GermlineLogLik1,
-                    GermlineLogLik2,
-                    Non_Germ2germLogPosterior,
-                    Non_Germ2germLogLikFraction,
-                    ConsistentMaxMosaicLogPosterior,
-                ) = unphase_calling.cal_somatic_log_posterior()
-                # 需要的信息：germline mosaic GT genotype posterior phase and unphase
-                # type: germline or mosaic
-                # two LRTs，Phase confidence（binominal test and two phase h1/h1+h2 and p1/p1+p2）
-                # to pop allele index output
-                # TODO: Assumping that big mosaic fraction is germline GT, small mosaic fraction is mosaic GT, mosaic fraction <= 0.5 ???##
-                # Posterior germline and mosaic GT
-                if MaxMosaicGT_for_output:
-                    if sorted(list(SecondMosaicGT_for_output[0])) == sorted(
-                        list(SecondMosaicGT_for_output[1])
-                    ):
-                        if (
-                            sorted(list(SecondMosaicGT_for_output[0]))
-                            == sorted(list(MaxMosaicGT_for_output[0]))
-                        ) or (
-                            sorted(list(SecondMosaicGT_for_output[0]))
-                            == sorted(list(MaxMosaicGT_for_output[1]))
+                # HACK: Set Max Iteration Time To Avoid Mapping Errors High Depth Issues
+                signal.signal(signal.SIGALRM, myutils.timeout_handler)
+                signal.alarm(MAX_ITER_TIME)  # 3600s
+                time_label = "PASS"
+                try:
+                    unphase_calling.mosaic_fraction_estimation()
+                except TimeoutError:
+                    time_label = "FAIL"
+                finally:
+                    signal.alarm(0)  # 取消定时器
+                if time_label == "PASS":
+                    (
+                        MaxMosaicGT_for_output,
+                        MaxMosaicLogPosterior,
+                        MaxMosaicLogLik,
+                        SecondMosaicGT_for_output,
+                        SecondMosaicLogPosterior,
+                        SecondMosaicLogLik,
+                        GermlineGT_for_output,
+                        GermlineLogPosterior,
+                        GermlineLogLik,
+                        GermlineLogLik1,
+                        GermlineLogLik2,
+                        Non_Germ2germLogPosterior,
+                        Non_Germ2germLogLikFraction,
+                        ConsistentMaxMosaicLogPosterior,
+                    ) = unphase_calling.cal_somatic_log_posterior()
+                    # 需要的信息：germline mosaic GT genotype posterior phase and unphase
+                    # type: germline or mosaic
+                    # two LRTs，Phase confidence（binominal test and two phase h1/h1+h2 and p1/p1+p2）
+                    # to pop allele index output
+                    # TODO: Assumping that big mosaic fraction is germline GT, small mosaic fraction is mosaic GT, mosaic fraction <= 0.5 ???##
+                    # Posterior germline and mosaic GT
+                    if MaxMosaicGT_for_output:
+                        if sorted(list(SecondMosaicGT_for_output[0])) == sorted(
+                            list(SecondMosaicGT_for_output[1])
                         ):
-                            samples_dict[bamname][
-                                "SECISGERM"
-                            ] = "SecondIsMosaicGerm"
-                        else:
-                            samples_dict[bamname][
-                                "SECISGERM"
-                            ] = "SecondIsNotMosaicGerm"
-                    else:
-                        samples_dict[bamname]["SECISGERM"] = "SecondIsNotGerm"
-                    if MaxMosaicGT_for_output[0] == MaxMosaicGT_for_output[1]:
-                        unphase_mosaic_type = "germline"
-                        mosaic_vs_germline_or, mosaic_vs_germline_p = 0, 1
-                        mosaic_vs_second_or, mosaic_vs_second_p = 0, 1
-                    else:
-                        (
-                            mosaic_vs_germline_or,
-                            mosaic_vs_germline_p,
-                        ) = mutation_filtering.ht_log_likelihood_ratio_test(
-                            MaxMosaicLogLik, GermlineLogLik, 2
-                        )
-                        if mosaic_vs_germline_p < 0.05:
                             if (
-                                MaxMosaicGT_for_output[0]
-                                == SecondMosaicGT_for_output[0]
+                                sorted(list(SecondMosaicGT_for_output[0]))
+                                == sorted(list(MaxMosaicGT_for_output[0]))
                             ) or (
-                                MaxMosaicGT_for_output[1]
-                                == SecondMosaicGT_for_output[1]
-                            ):  # 对，包括一个 GT 不一样的情况
-                                if (
-                                    SecondMosaicGT_for_output[0]
-                                    == SecondMosaicGT_for_output[1]
-                                ):
-                                    freedom_num = 1  # XXX: 1 or 2
-                                else:
-                                    freedom_num = 1
+                                sorted(list(SecondMosaicGT_for_output[0]))
+                                == sorted(list(MaxMosaicGT_for_output[1]))
+                            ):
+                                samples_dict[bamname][
+                                    "SECISGERM"
+                                ] = "SecondIsMosaicGerm"
                             else:
-                                freedom_num = 2  # 对，包括两个 GT 不一样的情况
-                            # 三个参数 GT/MGT/MF
-                            (
-                                mosaic_vs_second_or,
-                                mosaic_vs_second_p,
-                            ) = mutation_filtering.ht_log_likelihood_ratio_test(
-                                MaxMosaicLogLik,
-                                SecondMosaicLogLik,
-                                freedom_num,
-                            )
-                            if mosaic_vs_second_p < 0.05:
-                                unphase_mosaic_type = "mosaic"
-                            else:
-                                unphase_mosaic_type = (  # "germline_artifacts_2_mosaic"
-                                    "artifact"
-                                )
+                                samples_dict[bamname][
+                                    "SECISGERM"
+                                ] = "SecondIsNotMosaicGerm"
                         else:
+                            samples_dict[bamname]["SECISGERM"] = "SecondIsNotGerm"
+                        if MaxMosaicGT_for_output[0] == MaxMosaicGT_for_output[1]:
                             unphase_mosaic_type = "germline"
+                            mosaic_vs_germline_or, mosaic_vs_germline_p = 0, 1
                             mosaic_vs_second_or, mosaic_vs_second_p = 0, 1
-                    if DEBUG:
-                        print(MaxMosaicLogLik)  # HACK: 0.06181240393947037
-                        print(GermlineLogLik)  # HACK: 0.0 why ?
-                    (
-                        MaxGermlineGT,
-                        MaxGermlineLogPosterior,
-                        MaxGermlineLogLik,
-                        SecondGermlineGT,
-                        SecondGermlineLogPosterior,
-                        SecondGermlineLogLik,
-                    ) = unphase_calling.cal_germline_log_posterior()
-                    germline_freedom = 2 - len(
-                        set(MaxGermlineGT) & set(SecondGermlineGT)
-                    )
-                    (
-                        best_germ_vs_second_germ_or,
-                        best_germ_vs_second_germ_pvalue,
-                    ) = mutation_filtering.ht_log_likelihood_ratio_test(
-                        MaxGermlineLogLik,
-                        SecondGermlineLogLik,
-                        germline_freedom,
-                    )
-                    # if ((unphase_mosaic_type == "germline") or (unphase_mosaic_type == "artifacts")):
-                    #     # germline output
-                    #     # germline posterior
-                    #     # germline best vs second
-
-                    # elif unphase_mosaic_type == "mosaic":
-                    mosaic_gts_alleles = [
-                        tuple(
-                            [
-                                unphase_calling.alleles_used_for_gt[
-                                    MaxMosaicGT_for_output[0][0]
-                                ],
-                                unphase_calling.alleles_used_for_gt[
-                                    MaxMosaicGT_for_output[0][1]
-                                ],
-                            ]
-                        ),
-                        tuple(
-                            [
-                                unphase_calling.alleles_used_for_gt[
-                                    MaxMosaicGT_for_output[1][0]
-                                ],
-                                unphase_calling.alleles_used_for_gt[
-                                    MaxMosaicGT_for_output[1][1]
-                                ],
-                            ]
-                        ),
-                    ]
-                    MaxGermGT_for_pop_output = (
-                        unphase_calling.get_final_gt_index(MaxGermlineGT)
-                    )
-                    MaxGermGT_from_MosaicGT_for_pop_output = (
-                        unphase_calling.get_final_gt_index(
-                            GermlineGT_for_output
-                        )
-                    )  # 不输出到 VCF 文件
-                    MaxMosaicGT_for_pop_output = (
-                        unphase_calling.get_final_mosaic_index(
-                            MaxMosaicGT_for_output
-                        )
-                    )
-                    max_germ_gt = MaxMosaicGT_for_output[0]
-                    max_mosaic_gt = MaxMosaicGT_for_output[1]
-                    max_germ_gt_index = unphase_calling.genotypes.index(
-                        tuple(max_germ_gt)
-                    )
-                    max_mosaic_gt_index = unphase_calling.genotypes.index(
-                        tuple(max_mosaic_gt)
-                    )
-                    max_germ_mosaic_gt_index = (
-                        unphase_calling.mosaic_genotypes.index(
-                            tuple([max_germ_gt_index, max_mosaic_gt_index])
-                        )
-                    )
-                    max_mosaic_mosaic_fraction = (
-                        unphase_calling.estimated_mosaic_fraction[
-                            max_germ_mosaic_gt_index
-                        ]
-                    )
-                    all_mosaic_alleles = [
-                        MaxMosaicGT_for_output[0][0],
-                        MaxMosaicGT_for_output[0][1],
-                        MaxMosaicGT_for_output[1][0],
-                        MaxMosaicGT_for_output[1][1],
-                    ]
-                    # hap_depth_list = myutils.cal_mle_haplotype_depth_dict_phase(
-                    #     unphase_calling.all_reads_all_alleles_log_lik_array)
-                    # samples_dict[bamname]["DSTUTTER"] = sum(
-                    #     hap_depth_list)-sum(hap_depth_list[all_mosaic_alleles])
-                    # all_mosaic_allele_depth = alleles_depth_dict[mosaic_gts_alleles[0][0]] + alleles_depth_dict[mosaic_gts_alleles[0][1]] + alleles_depth_dict[mosaic_gts_alleles[1][0]] + alleles_depth_dict[mosaic_gts_alleles[1][1]]
-                    mosaic_gt_allele_depth = 0
-                    mosaic_allele_num = 0
-                    for mosaic_allele in set(
-                        [
-                            mosaic_gts_alleles[0][0],
-                            mosaic_gts_alleles[0][1],
-                            mosaic_gts_alleles[1][0],
-                            mosaic_gts_alleles[1][1],
-                        ]
-                    ):
-                        mosaic_gt_allele_depth += alleles_depth_dict.get(
-                            mosaic_allele, 0
-                        )
-                        if alleles_depth_dict.get(mosaic_allele, 0) > 0:
-                            mosaic_allele_num += 1
-                    observed_stutter_depth = (
-                        sum(alleles_depth_dict.values())
-                        - mosaic_gt_allele_depth
-                    )
-                    observed_stutter_fraction = observed_stutter_depth / sum(
-                        alleles_depth_dict.values()
-                    )
-                    observed_stutter_allele_num = (
-                        len(alleles_depth_dict) - mosaic_allele_num
-                    )
-                    observed_stutter_allele_fraction = (
-                        observed_stutter_allele_num / len(alleles_depth_dict)
-                    )
-                    # mask = np.ones_like(hap_depth_list, dtype=bool)
-                    # mask[all_mosaic_alleles] = False
-                    # count_nonzero = np.count_nonzero(hap_depth_list[mask])
-                    # samples_dict[bamname]["NSTUTTER"] = count_nonzero
-                    # normalized_lik
-                    log_normalized_factor = logsumexp(
-                        [GermlineLogLik1, GermlineLogLik2, MaxMosaicLogLik]
-                    )  # GermlineLogLik1 GermlineLogLik2 MaxMosaicLogLik All are loglik frac
-                    normalized_germ1 = np.exp(
-                        GermlineLogLik1 - log_normalized_factor
-                    )
-                    normalized_germ2 = np.exp(
-                        GermlineLogLik2 - log_normalized_factor
-                    )
-                    normalized_max = np.exp(
-                        MaxMosaicLogLik - log_normalized_factor
-                    )
-                    normalized_second = np.exp(
-                        SecondMosaicLogLik
-                        - logsumexp([SecondMosaicLogLik, MaxMosaicLogLik])
-                    )
-                    # XXX: 注意更大的 NORMGERM 值对应 GT 的 lik frac，更小的 NORMGERM 值对应 MGT 的 lik frac
-                    # HACK: 这边的 NORMGERM1 和 NORMGERM2 是无序的，不知道 NORMGERM1 大还是 NORMGERM2 大，也不知道 NORMGERM1 对应 GT 还是 NORMGERM2 对应 GT
-                    # 也不知道 NORMGERM1 对应 Het 还是 NORMGERM2 对应 Het, 并且 Het2Het 时可以都是 Het
-                    samples_dict[bamname]["NORMGERM1"] = normalized_germ1
-                    samples_dict[bamname]["NORMGERM2"] = normalized_germ2
-                    samples_dict[bamname]["NORMMOSAIC"] = normalized_max
-                    samples_dict[bamname]["NORMSECOND"] = normalized_second
-                    samples_dict[bamname]["DSTUTTER"] = observed_stutter_depth
-                    samples_dict[bamname][
-                        "DFSTUTTER"
-                    ] = observed_stutter_fraction
-                    samples_dict[bamname][
-                        "NSTUTTER"
-                    ] = observed_stutter_allele_num
-                    samples_dict[bamname][
-                        "NFSTUTTER"
-                    ] = observed_stutter_allele_fraction
-                    if (
-                        MaxMosaicGT_for_pop_output[0]
-                        == MaxMosaicGT_for_pop_output[1]
-                    ):
-                        # mosaic_type = "Germline"
-                        samples_dict[bamname]["MUTP"] = "NA"
-                        samples_dict[bamname]["MN"] = 0
-                        samples_dict[bamname]["FRAME"] = "NA"
-                        samples_dict[bamname]["MBP"] = 0
-                        # XXX: Here is observed GT depth and not expected depth (considering stutter error reads depth when use expected)
-                        EAD = ""
-                        EAF = ""
-                        for mosaic_allele_pop_out_index in [
-                            MaxMosaicGT_for_pop_output[0][0],
-                            MaxMosaicGT_for_pop_output[0][1],
-                            MaxMosaicGT_for_pop_output[1][0],
-                            MaxMosaicGT_for_pop_output[1][1],
-                        ]:
-                            mosaic_allele = all_alleles_list_for_gt_output[
-                                mosaic_allele_pop_out_index
-                            ]
-                            EAD += (
-                                str(alleles_depth_dict.get(mosaic_allele, 0))
-                                + ","
-                            )
-                            EAF += (
-                                str(
-                                    alleles_depth_dict.get(mosaic_allele, 0)
-                                    / unphase_calling.reads_number
-                                )
-                                + ","
-                            )
-                        # for adp in hap_depth_list[all_mosaic_alleles]:
-                        #     EAD = str(adp)+","
-                        #     EAF = str(adp/unphase_calling.reads_number)+","
-                        EAD = EAD[:-1]
-                        EAF = EAF[:-1]
-                        # TODO Allele pool number of sample, Done!
-                        # TODO phase calling allele filter, Done!
-                        # TODO EMLEAD, EMLEAF, MLE unknown reads number unphase, Done!
-                        if (
-                            MaxMosaicGT_for_pop_output[0][0]
-                            == MaxMosaicGT_for_pop_output[0][1]
-                        ):
-                            allele_depth = str(unphase_calling.reads_number)
-                            EMLEAD = (
-                                allele_depth
-                                + ","
-                                + allele_depth
-                                + ","
-                                + allele_depth
-                                + ","
-                                + allele_depth
-                            )
-                            EMLEAF = "1,1,1,1"
-                            unphase_gt_unknown_assign_num = 0
                         else:
-                            mle_allele_index_list = [
-                                unphase_calling.alleles_used_for_gt.index(
-                                    all_alleles_list_for_gt_output[
-                                        MaxMosaicGT_for_pop_output[0][0]
-                                    ]
-                                ),
-                                unphase_calling.alleles_used_for_gt.index(
-                                    all_alleles_list_for_gt_output[
-                                        MaxMosaicGT_for_pop_output[0][1]
-                                    ]
-                                ),
-                            ]
                             (
-                                unphase_gt_hap_depth_list,
-                                unphase_gt_unknown_assign_num,
-                            ) = myutils.cal_mle_haplotype_depth_dict_given_mosaicgt_phase(
-                                unphase_calling.all_reads_all_alleles_log_lik_array,
-                                mle_allele_index_list,
+                                mosaic_vs_germline_or,
+                                mosaic_vs_germline_p,
+                            ) = mutation_filtering.ht_log_likelihood_ratio_test(
+                                MaxMosaicLogLik, GermlineLogLik, 2
                             )
-                            EMLEAD = (
-                                str(unphase_gt_hap_depth_list[0])
-                                + ","
-                                + str(unphase_gt_hap_depth_list[1])
-                                + ","
-                                + str(unphase_gt_hap_depth_list[0])
-                                + ","
-                                + str(unphase_gt_hap_depth_list[1])
-                            )
-                            EMLEAF = (
-                                str(
-                                    unphase_gt_hap_depth_list[0]
-                                    / unphase_calling.reads_number
+                            if mosaic_vs_germline_p < 0.05:
+                                if (
+                                    MaxMosaicGT_for_output[0]
+                                    == SecondMosaicGT_for_output[0]
+                                ) or (
+                                    MaxMosaicGT_for_output[1]
+                                    == SecondMosaicGT_for_output[1]
+                                ):  # 对，包括一个 GT 不一样的情况
+                                    if (
+                                        SecondMosaicGT_for_output[0]
+                                        == SecondMosaicGT_for_output[1]
+                                    ):
+                                        freedom_num = 1  # XXX: 1 or 2
+                                    else:
+                                        freedom_num = 1
+                                else:
+                                    freedom_num = 2  # 对，包括两个 GT 不一样的情况
+                                # 三个参数 GT/MGT/MF
+                                (
+                                    mosaic_vs_second_or,
+                                    mosaic_vs_second_p,
+                                ) = mutation_filtering.ht_log_likelihood_ratio_test(
+                                    MaxMosaicLogLik,
+                                    SecondMosaicLogLik,
+                                    freedom_num,
                                 )
-                                + ","
-                                + str(
-                                    unphase_gt_hap_depth_list[1]
-                                    / unphase_calling.reads_number
-                                )
-                                + ","
-                                + str(
-                                    unphase_gt_hap_depth_list[0]
-                                    / unphase_calling.reads_number
-                                )
-                                + ","
-                                + str(
-                                    unphase_gt_hap_depth_list[1]
-                                    / unphase_calling.reads_number
-                                )
-                            )
-                        samples_dict[bamname]["GT"] = (
-                            str(MaxMosaicGT_for_pop_output[0][0])
-                            + "/"
-                            + str(MaxMosaicGT_for_pop_output[0][1])
+                                if mosaic_vs_second_p < 0.05:
+                                    unphase_mosaic_type = "mosaic"
+                                else:
+                                    unphase_mosaic_type = (  # "germline_artifacts_2_mosaic"
+                                        "artifact"
+                                    )
+                            else:
+                                unphase_mosaic_type = "germline"
+                                mosaic_vs_second_or, mosaic_vs_second_p = 0, 1
+                        if DEBUG:
+                            print(MaxMosaicLogLik)  # HACK: 0.06181240393947037
+                            print(GermlineLogLik)  # HACK: 0.0 why ?
+                        (
+                            MaxGermlineGT,
+                            MaxGermlineLogPosterior,
+                            MaxGermlineLogLik,
+                            SecondGermlineGT,
+                            SecondGermlineLogPosterior,
+                            SecondGermlineLogLik,
+                        ) = unphase_calling.cal_germline_log_posterior()
+                        germline_freedom = 2 - len(
+                            set(MaxGermlineGT) & set(SecondGermlineGT)
                         )
-                        samples_dict[bamname]["MGT"] = (
-                            str(MaxMosaicGT_for_pop_output[1][0])
-                            + "/"
-                            + str(MaxMosaicGT_for_pop_output[1][1])
+                        (
+                            best_germ_vs_second_germ_or,
+                            best_germ_vs_second_germ_pvalue,
+                        ) = mutation_filtering.ht_log_likelihood_ratio_test(
+                            MaxGermlineLogLik,
+                            SecondGermlineLogLik,
+                            germline_freedom,
                         )
+                        # if ((unphase_mosaic_type == "germline") or (unphase_mosaic_type == "artifacts")):
+                        #     # germline output
+                        #     # germline posterior
+                        #     # germline best vs second
+
+                        # elif unphase_mosaic_type == "mosaic":
+                        mosaic_gts_alleles = [
+                            tuple(
+                                [
+                                    unphase_calling.alleles_used_for_gt[
+                                        MaxMosaicGT_for_output[0][0]
+                                    ],
+                                    unphase_calling.alleles_used_for_gt[
+                                        MaxMosaicGT_for_output[0][1]
+                                    ],
+                                ]
+                            ),
+                            tuple(
+                                [
+                                    unphase_calling.alleles_used_for_gt[
+                                        MaxMosaicGT_for_output[1][0]
+                                    ],
+                                    unphase_calling.alleles_used_for_gt[
+                                        MaxMosaicGT_for_output[1][1]
+                                    ],
+                                ]
+                            ),
+                        ]
+                        MaxGermGT_for_pop_output = (
+                            unphase_calling.get_final_gt_index(MaxGermlineGT)
+                        )
+                        MaxGermGT_from_MosaicGT_for_pop_output = (
+                            unphase_calling.get_final_gt_index(
+                                GermlineGT_for_output
+                            )
+                        )  # 不输出到 VCF 文件
+                        MaxMosaicGT_for_pop_output = (
+                            unphase_calling.get_final_mosaic_index(
+                                MaxMosaicGT_for_output
+                            )
+                        )
+                        max_germ_gt = MaxMosaicGT_for_output[0]
+                        max_mosaic_gt = MaxMosaicGT_for_output[1]
+                        max_germ_gt_index = unphase_calling.genotypes.index(
+                            tuple(max_germ_gt)
+                        )
+                        max_mosaic_gt_index = unphase_calling.genotypes.index(
+                            tuple(max_mosaic_gt)
+                        )
+                        max_germ_mosaic_gt_index = (
+                            unphase_calling.mosaic_genotypes.index(
+                                tuple([max_germ_gt_index, max_mosaic_gt_index])
+                            )
+                        )
+                        max_mosaic_mosaic_fraction = (
+                            unphase_calling.estimated_mosaic_fraction[
+                                max_germ_mosaic_gt_index
+                            ]
+                        )
+                        all_mosaic_alleles = [
+                            MaxMosaicGT_for_output[0][0],
+                            MaxMosaicGT_for_output[0][1],
+                            MaxMosaicGT_for_output[1][0],
+                            MaxMosaicGT_for_output[1][1],
+                        ]
+                        # hap_depth_list = myutils.cal_mle_haplotype_depth_dict_phase(
+                        #     unphase_calling.all_reads_all_alleles_log_lik_array)
+                        # samples_dict[bamname]["DSTUTTER"] = sum(
+                        #     hap_depth_list)-sum(hap_depth_list[all_mosaic_alleles])
+                        # all_mosaic_allele_depth = alleles_depth_dict[mosaic_gts_alleles[0][0]] + alleles_depth_dict[mosaic_gts_alleles[0][1]] + alleles_depth_dict[mosaic_gts_alleles[1][0]] + alleles_depth_dict[mosaic_gts_alleles[1][1]]
+                        mosaic_gt_allele_depth = 0
+                        mosaic_allele_num = 0
+                        for mosaic_allele in set(
+                            [
+                                mosaic_gts_alleles[0][0],
+                                mosaic_gts_alleles[0][1],
+                                mosaic_gts_alleles[1][0],
+                                mosaic_gts_alleles[1][1],
+                            ]
+                        ):
+                            mosaic_gt_allele_depth += alleles_depth_dict.get(
+                                mosaic_allele, 0
+                            )
+                            if alleles_depth_dict.get(mosaic_allele, 0) > 0:
+                                mosaic_allele_num += 1
+                        observed_stutter_depth = (
+                            sum(alleles_depth_dict.values())
+                            - mosaic_gt_allele_depth
+                        )
+                        observed_stutter_fraction = observed_stutter_depth / sum(
+                            alleles_depth_dict.values()
+                        )
+                        observed_stutter_allele_num = (
+                            len(alleles_depth_dict) - mosaic_allele_num
+                        )
+                        observed_stutter_allele_fraction = (
+                            observed_stutter_allele_num / len(alleles_depth_dict)
+                        )
+                        # mask = np.ones_like(hap_depth_list, dtype=bool)
+                        # mask[all_mosaic_alleles] = False
+                        # count_nonzero = np.count_nonzero(hap_depth_list[mask])
+                        # samples_dict[bamname]["NSTUTTER"] = count_nonzero
+                        # normalized_lik
+                        log_normalized_factor = logsumexp(
+                            [GermlineLogLik1, GermlineLogLik2, MaxMosaicLogLik]
+                        )  # GermlineLogLik1 GermlineLogLik2 MaxMosaicLogLik All are loglik frac
+                        normalized_germ1 = np.exp(
+                            GermlineLogLik1 - log_normalized_factor
+                        )
+                        normalized_germ2 = np.exp(
+                            GermlineLogLik2 - log_normalized_factor
+                        )
+                        normalized_max = np.exp(
+                            MaxMosaicLogLik - log_normalized_factor
+                        )
+                        normalized_second = np.exp(
+                            SecondMosaicLogLik
+                            - logsumexp([SecondMosaicLogLik, MaxMosaicLogLik])
+                        )
+                        # XXX: 注意更大的 NORMGERM 值对应 GT 的 lik frac，更小的 NORMGERM 值对应 MGT 的 lik frac
+                        # HACK: 这边的 NORMGERM1 和 NORMGERM2 是无序的，不知道 NORMGERM1 大还是 NORMGERM2 大，也不知道 NORMGERM1 对应 GT 还是 NORMGERM2 对应 GT
+                        # 也不知道 NORMGERM1 对应 Het 还是 NORMGERM2 对应 Het, 并且 Het2Het 时可以都是 Het
+                        samples_dict[bamname]["NORMGERM1"] = normalized_germ1
+                        samples_dict[bamname]["NORMGERM2"] = normalized_germ2
+                        samples_dict[bamname]["NORMMOSAIC"] = normalized_max
+                        samples_dict[bamname]["NORMSECOND"] = normalized_second
+                        samples_dict[bamname]["DSTUTTER"] = observed_stutter_depth
                         samples_dict[bamname][
-                            "MF"
-                        ] = max_mosaic_mosaic_fraction
-                        update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
-                        update_mosaic_fraction = max_mosaic_mosaic_fraction
-                    else:
-                        # if len(set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1])) == 0:
-                        #     mosaic_type = "TwoAlleleMosaic"
-                        #     samples_dict[bamname]["MUTP"] = "."
-                        #     samples_dict[bamname]["MN"] = 2
-                        #     samples_dict[bamname]["FRAME"] = "."
-                        # elif len(set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1])) == 1:
-                        samples_dict[bamname]["MN"] = 1
-                        # mosaic_type = "OneAlleleMosaic"
-                        # XXX We don't allow Het2Hom and assumping het-hom is mosaic allele,but in fact germGT and mosaicGT maybe inconsistent with mosaic allele,i will refine later, ## TODO
-                        # 杂合变杂合时，germ pro 较大的为 germ
-                        # 杂合变纯合或纯合变杂合时
-                        # mosaic fraction，germline GT from mosaic GT，germline GT from gt lik
-                        # het2hom，hom2het，het2het
-                        # mosaic GT 的方向和 mosaic fraction 和 mosaic 输出应该一致
-                        # 注意 tuple, list 和 set 是不相等的哈
-                        # TypeError: 'set' object is not subscriptable
-                        # XXX: 目前 MosaicGT 的顺根据 Germ 的概率来排序，所以可能出现 HetHom 的 MosaicGT，而 update_mosaic_fraction 的顺序和 MosaicGT 的顺序一致
-                        # XXX: 所以 update_mosaic_fraction 可能有 HetHom 的 mosaic fraction 因为这边的 mosaic fraction germ 取决于概率而不管是不是 homhet hethet hethom
-                        # XXX: 所以计算 features 时有一个额外的 MF_hom2het_het2het 的 mosaic fraction，只考虑 homhet hethet，hethom 会计算成 1 - update_mosaic_fraction 作为 MF_hom2het_het2het
-                        if tuple(MaxMosaicGT_for_pop_output[0]) == tuple(
-                            MaxGermGT_from_MosaicGT_for_pop_output
-                        ):  # 两个都是tuple
+                            "DFSTUTTER"
+                        ] = observed_stutter_fraction
+                        samples_dict[bamname][
+                            "NSTUTTER"
+                        ] = observed_stutter_allele_num
+                        samples_dict[bamname][
+                            "NFSTUTTER"
+                        ] = observed_stutter_allele_fraction
+                        if (
+                            MaxMosaicGT_for_pop_output[0]
+                            == MaxMosaicGT_for_pop_output[1]
+                        ):
+                            # mosaic_type = "Germline"
+                            samples_dict[bamname]["MUTP"] = "NA"
+                            samples_dict[bamname]["MN"] = 0
+                            samples_dict[bamname]["FRAME"] = "NA"
+                            samples_dict[bamname]["MBP"] = 0
+                            # XXX: Here is observed GT depth and not expected depth (considering stutter error reads depth when use expected)
+                            EAD = ""
+                            EAF = ""
+                            for mosaic_allele_pop_out_index in [
+                                MaxMosaicGT_for_pop_output[0][0],
+                                MaxMosaicGT_for_pop_output[0][1],
+                                MaxMosaicGT_for_pop_output[1][0],
+                                MaxMosaicGT_for_pop_output[1][1],
+                            ]:
+                                mosaic_allele = all_alleles_list_for_gt_output[
+                                    mosaic_allele_pop_out_index
+                                ]
+                                EAD += (
+                                    str(alleles_depth_dict.get(mosaic_allele, 0))
+                                    + ","
+                                )
+                                EAF += (
+                                    str(
+                                        alleles_depth_dict.get(mosaic_allele, 0)
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                )
+                            # for adp in hap_depth_list[all_mosaic_alleles]:
+                            #     EAD = str(adp)+","
+                            #     EAF = str(adp/unphase_calling.reads_number)+","
+                            EAD = EAD[:-1]
+                            EAF = EAF[:-1]
+                            # TODO Allele pool number of sample, Done!
+                            # TODO phase calling allele filter, Done!
+                            # TODO EMLEAD, EMLEAF, MLE unknown reads number unphase, Done!
                             if (
-                                len(set(MaxMosaicGT_for_pop_output[1])) == 1
-                            ):  # HetHom
-                                if PROB_BASED_GERMLINE:  # True
-                                    mosaic_allele = MaxMosaicGT_for_pop_output[
-                                        1
-                                    ][0]
-                                    mosaic_source_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[0])
-                                        - set(MaxMosaicGT_for_pop_output[1])
+                                MaxMosaicGT_for_pop_output[0][0]
+                                == MaxMosaicGT_for_pop_output[0][1]
+                            ):
+                                allele_depth = str(unphase_calling.reads_number)
+                                EMLEAD = (
+                                    allele_depth
+                                    + ","
+                                    + allele_depth
+                                    + ","
+                                    + allele_depth
+                                    + ","
+                                    + allele_depth
+                                )
+                                EMLEAF = "1,1,1,1"
+                                unphase_gt_unknown_assign_num = 0
+                            else:
+                                mle_allele_index_list = [
+                                    unphase_calling.alleles_used_for_gt.index(
+                                        all_alleles_list_for_gt_output[
+                                            MaxMosaicGT_for_pop_output[0][0]
+                                        ]
+                                    ),
+                                    unphase_calling.alleles_used_for_gt.index(
+                                        all_alleles_list_for_gt_output[
+                                            MaxMosaicGT_for_pop_output[0][1]
+                                        ]
+                                    ),
+                                ]
+                                (
+                                    unphase_gt_hap_depth_list,
+                                    unphase_gt_unknown_assign_num,
+                                ) = myutils.cal_mle_haplotype_depth_dict_given_mosaicgt_phase(
+                                    unphase_calling.all_reads_all_alleles_log_lik_array,
+                                    mle_allele_index_list,
+                                )
+                                EMLEAD = (
+                                    str(unphase_gt_hap_depth_list[0])
+                                    + ","
+                                    + str(unphase_gt_hap_depth_list[1])
+                                    + ","
+                                    + str(unphase_gt_hap_depth_list[0])
+                                    + ","
+                                    + str(unphase_gt_hap_depth_list[1])
+                                )
+                                EMLEAF = (
+                                    str(
+                                        unphase_gt_hap_depth_list[0]
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                    + str(
+                                        unphase_gt_hap_depth_list[1]
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                    + str(
+                                        unphase_gt_hap_depth_list[0]
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                    + str(
+                                        unphase_gt_hap_depth_list[1]
+                                        / unphase_calling.reads_number
+                                    )
+                                )
+                            samples_dict[bamname]["GT"] = (
+                                str(MaxMosaicGT_for_pop_output[0][0])
+                                + "/"
+                                + str(MaxMosaicGT_for_pop_output[0][1])
+                            )
+                            samples_dict[bamname]["MGT"] = (
+                                str(MaxMosaicGT_for_pop_output[1][0])
+                                + "/"
+                                + str(MaxMosaicGT_for_pop_output[1][1])
+                            )
+                            samples_dict[bamname][
+                                "MF"
+                            ] = max_mosaic_mosaic_fraction
+                            update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
+                            update_mosaic_fraction = max_mosaic_mosaic_fraction
+                        else:
+                            # if len(set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1])) == 0:
+                            #     mosaic_type = "TwoAlleleMosaic"
+                            #     samples_dict[bamname]["MUTP"] = "."
+                            #     samples_dict[bamname]["MN"] = 2
+                            #     samples_dict[bamname]["FRAME"] = "."
+                            # elif len(set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1])) == 1:
+                            samples_dict[bamname]["MN"] = 1
+                            # mosaic_type = "OneAlleleMosaic"
+                            # XXX We don't allow Het2Hom and assumping het-hom is mosaic allele,but in fact germGT and mosaicGT maybe inconsistent with mosaic allele,i will refine later, ## TODO
+                            # 杂合变杂合时，germ pro 较大的为 germ
+                            # 杂合变纯合或纯合变杂合时
+                            # mosaic fraction，germline GT from mosaic GT，germline GT from gt lik
+                            # het2hom，hom2het，het2het
+                            # mosaic GT 的方向和 mosaic fraction 和 mosaic 输出应该一致
+                            # 注意 tuple, list 和 set 是不相等的哈
+                            # TypeError: 'set' object is not subscriptable
+                            # XXX: 目前 MosaicGT 的顺根据 Germ 的概率来排序，所以可能出现 HetHom 的 MosaicGT，而 update_mosaic_fraction 的顺序和 MosaicGT 的顺序一致
+                            # XXX: 所以 update_mosaic_fraction 可能有 HetHom 的 mosaic fraction 因为这边的 mosaic fraction germ 取决于概率而不管是不是 homhet hethet hethom
+                            # XXX: 所以计算 features 时有一个额外的 MF_hom2het_het2het 的 mosaic fraction，只考虑 homhet hethet，hethom 会计算成 1 - update_mosaic_fraction 作为 MF_hom2het_het2het
+                            if tuple(MaxMosaicGT_for_pop_output[0]) == tuple(
+                                MaxGermGT_from_MosaicGT_for_pop_output
+                            ):  # 两个都是tuple
+                                if (
+                                    len(set(MaxMosaicGT_for_pop_output[1])) == 1
+                                ):  # HetHom
+                                    if PROB_BASED_GERMLINE:  # True
+                                        mosaic_allele = MaxMosaicGT_for_pop_output[
+                                            1
+                                        ][0]
+                                        mosaic_source_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            - set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        # XXX: Let mosaic allele in the second allele, adjust the GT order and Mosaic order
+                                        # update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
+                                        # another_germline_allele = list(
+                                        #     set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1]))[0]
+                                        # update_mosaic_gts_alleles = tuple([tuple([another_germline_allele,mosaic_source_germline_allele]),MaxMosaicGT_for_pop_output[1]])
+                                        another_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            & set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        # XXX: Use this because allow germ2germ and single allele mutation
+                                        update_mosaic_gts_alleles = tuple(
+                                            [
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_source_germline_allele,
+                                                    ]
+                                                ),
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_allele,
+                                                    ]
+                                                ),
+                                            ]
+                                        )
+                                        update_mosaic_fraction = (
+                                            max_mosaic_mosaic_fraction
+                                        )
+                                    else:
+                                        mosaic_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            - set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        mosaic_source_germline_allele = (
+                                            MaxMosaicGT_for_pop_output[1][0]
+                                        )
+                                        another_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            & set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        update_mosaic_gts_alleles = tuple(
+                                            [
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_source_germline_allele,
+                                                    ]
+                                                ),
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_allele,
+                                                    ]
+                                                ),
+                                            ]
+                                        )
+                                        update_mosaic_fraction = (
+                                            1 - max_mosaic_mosaic_fraction
+                                        )
+                                else:  # HomHet or HetHet
+                                    mosaic_allele = list(
+                                        set(MaxMosaicGT_for_pop_output[1])
+                                        - set(MaxMosaicGT_for_pop_output[0])
                                     )[0]
-                                    # XXX: Let mosaic allele in the second allele, adjust the GT order and Mosaic order
-                                    # update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
-                                    # another_germline_allele = list(
-                                    #     set(MaxMosaicGT_for_pop_output[0]) & set(MaxMosaicGT_for_pop_output[1]))[0]
-                                    # update_mosaic_gts_alleles = tuple([tuple([another_germline_allele,mosaic_source_germline_allele]),MaxMosaicGT_for_pop_output[1]])
+                                    if (
+                                        len(set(MaxMosaicGT_for_pop_output[0]))
+                                        == 1
+                                    ):
+                                        mosaic_source_germline_allele = (
+                                            MaxMosaicGT_for_pop_output[0][0]
+                                        )
+                                    else:
+                                        mosaic_source_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            - set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
                                     another_germline_allele = list(
                                         set(MaxMosaicGT_for_pop_output[0])
                                         & set(MaxMosaicGT_for_pop_output[1])
                                     )[0]
-                                    # XXX: Use this because allow germ2germ and single allele mutation
                                     update_mosaic_gts_alleles = tuple(
                                         [
                                             tuple(
@@ -2380,89 +2463,91 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                     update_mosaic_fraction = (
                                         max_mosaic_mosaic_fraction
                                     )
-                                else:
+                            else:
+                                if (
+                                    len(set(MaxMosaicGT_for_pop_output[0])) == 1
+                                ):  # HetHom
+                                    if PROB_BASED_GERMLINE:
+                                        mosaic_allele = MaxMosaicGT_for_pop_output[
+                                            0
+                                        ][0]
+                                        mosaic_source_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[1])
+                                            - set(MaxMosaicGT_for_pop_output[0])
+                                        )[0]
+                                        # update_mosaic_gts_alleles = tuple([MaxMosaicGT_for_pop_output[1], MaxMosaicGT_for_pop_output[0]])
+                                        another_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            & set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        update_mosaic_gts_alleles = tuple(
+                                            [
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_source_germline_allele,
+                                                    ]
+                                                ),
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_allele,
+                                                    ]
+                                                ),
+                                            ]
+                                        )
+                                        update_mosaic_fraction = (
+                                            1 - max_mosaic_mosaic_fraction
+                                        )
+                                    else:
+                                        mosaic_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[1])
+                                            - set(MaxMosaicGT_for_pop_output[0])
+                                        )[0]
+                                        mosaic_source_germline_allele = (
+                                            MaxMosaicGT_for_pop_output[0][0]
+                                        )
+                                        # update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
+                                        another_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[0])
+                                            & set(MaxMosaicGT_for_pop_output[1])
+                                        )[0]
+                                        update_mosaic_gts_alleles = tuple(
+                                            [
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_source_germline_allele,
+                                                    ]
+                                                ),
+                                                tuple(
+                                                    [
+                                                        another_germline_allele,
+                                                        mosaic_allele,
+                                                    ]
+                                                ),
+                                            ]
+                                        )
+                                        update_mosaic_fraction = (
+                                            max_mosaic_mosaic_fraction
+                                        )
+                                else:  # HomHet or HetHet
                                     mosaic_allele = list(
                                         set(MaxMosaicGT_for_pop_output[0])
                                         - set(MaxMosaicGT_for_pop_output[1])
                                     )[0]
-                                    mosaic_source_germline_allele = (
-                                        MaxMosaicGT_for_pop_output[1][0]
-                                    )
-                                    another_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[0])
-                                        & set(MaxMosaicGT_for_pop_output[1])
-                                    )[0]
-                                    update_mosaic_gts_alleles = tuple(
-                                        [
-                                            tuple(
-                                                [
-                                                    another_germline_allele,
-                                                    mosaic_source_germline_allele,
-                                                ]
-                                            ),
-                                            tuple(
-                                                [
-                                                    another_germline_allele,
-                                                    mosaic_allele,
-                                                ]
-                                            ),
-                                        ]
-                                    )
-                                    update_mosaic_fraction = (
-                                        1 - max_mosaic_mosaic_fraction
-                                    )
-                            else:  # HomHet or HetHet
-                                mosaic_allele = list(
-                                    set(MaxMosaicGT_for_pop_output[1])
-                                    - set(MaxMosaicGT_for_pop_output[0])
-                                )[0]
-                                if (
-                                    len(set(MaxMosaicGT_for_pop_output[0]))
-                                    == 1
-                                ):
-                                    mosaic_source_germline_allele = (
-                                        MaxMosaicGT_for_pop_output[0][0]
-                                    )
-                                else:
-                                    mosaic_source_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[0])
-                                        - set(MaxMosaicGT_for_pop_output[1])
-                                    )[0]
-                                another_germline_allele = list(
-                                    set(MaxMosaicGT_for_pop_output[0])
-                                    & set(MaxMosaicGT_for_pop_output[1])
-                                )[0]
-                                update_mosaic_gts_alleles = tuple(
-                                    [
-                                        tuple(
-                                            [
-                                                another_germline_allele,
-                                                mosaic_source_germline_allele,
-                                            ]
-                                        ),
-                                        tuple(
-                                            [
-                                                another_germline_allele,
-                                                mosaic_allele,
-                                            ]
-                                        ),
-                                    ]
-                                )
-                                update_mosaic_fraction = (
-                                    max_mosaic_mosaic_fraction
-                                )
-                        else:
-                            if (
-                                len(set(MaxMosaicGT_for_pop_output[0])) == 1
-                            ):  # HetHom
-                                if PROB_BASED_GERMLINE:
-                                    mosaic_allele = MaxMosaicGT_for_pop_output[
-                                        0
-                                    ][0]
-                                    mosaic_source_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[1])
-                                        - set(MaxMosaicGT_for_pop_output[0])
-                                    )[0]
+                                    if (
+                                        len(set(MaxMosaicGT_for_pop_output[1]))
+                                        == 1
+                                    ):
+                                        mosaic_source_germline_allele = (
+                                            MaxMosaicGT_for_pop_output[1][0]
+                                        )
+                                    else:
+                                        mosaic_source_germline_allele = list(
+                                            set(MaxMosaicGT_for_pop_output[1])
+                                            - set(MaxMosaicGT_for_pop_output[0])
+                                        )[0]
                                     # update_mosaic_gts_alleles = tuple([MaxMosaicGT_for_pop_output[1], MaxMosaicGT_for_pop_output[0]])
                                     another_germline_allele = list(
                                         set(MaxMosaicGT_for_pop_output[0])
@@ -2487,106 +2572,47 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                     update_mosaic_fraction = (
                                         1 - max_mosaic_mosaic_fraction
                                     )
-                                else:
-                                    mosaic_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[1])
-                                        - set(MaxMosaicGT_for_pop_output[0])
-                                    )[0]
-                                    mosaic_source_germline_allele = (
-                                        MaxMosaicGT_for_pop_output[0][0]
-                                    )
-                                    # update_mosaic_gts_alleles = MaxMosaicGT_for_pop_output
-                                    another_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[0])
-                                        & set(MaxMosaicGT_for_pop_output[1])
-                                    )[0]
-                                    update_mosaic_gts_alleles = tuple(
-                                        [
-                                            tuple(
-                                                [
-                                                    another_germline_allele,
-                                                    mosaic_source_germline_allele,
-                                                ]
-                                            ),
-                                            tuple(
-                                                [
-                                                    another_germline_allele,
-                                                    mosaic_allele,
-                                                ]
-                                            ),
-                                        ]
-                                    )
-                                    update_mosaic_fraction = (
-                                        max_mosaic_mosaic_fraction
-                                    )
-                            else:  # HomHet or HetHet
-                                mosaic_allele = list(
-                                    set(MaxMosaicGT_for_pop_output[0])
-                                    - set(MaxMosaicGT_for_pop_output[1])
-                                )[0]
+                            # if len(set(MaxMosaicGT_for_pop_output[0]) - set(MaxMosaicGT_for_pop_output[1])) == 1:
+                            #     mosaic_allele = list(
+                            #         set(MaxMosaicGT_for_pop_output[0]) - set(MaxMosaicGT_for_pop_output[1]))[0]
+                            # else:
+                            #     mosaic_allele = (
+                            #         set(MaxMosaicGT_for_pop_output[1]) - set(MaxMosaicGT_for_pop_output[0]))[0]
+                            if LIKELIHOOD_MODE == "length-based":
                                 if (
-                                    len(set(MaxMosaicGT_for_pop_output[1]))
-                                    == 1
-                                ):
-                                    mosaic_source_germline_allele = (
-                                        MaxMosaicGT_for_pop_output[1][0]
-                                    )
-                                else:
-                                    mosaic_source_germline_allele = list(
-                                        set(MaxMosaicGT_for_pop_output[1])
-                                        - set(MaxMosaicGT_for_pop_output[0])
-                                    )[0]
-                                # update_mosaic_gts_alleles = tuple([MaxMosaicGT_for_pop_output[1], MaxMosaicGT_for_pop_output[0]])
-                                another_germline_allele = list(
-                                    set(MaxMosaicGT_for_pop_output[0])
-                                    & set(MaxMosaicGT_for_pop_output[1])
-                                )[0]
-                                update_mosaic_gts_alleles = tuple(
-                                    [
-                                        tuple(
-                                            [
-                                                another_germline_allele,
-                                                mosaic_source_germline_allele,
-                                            ]
-                                        ),
-                                        tuple(
-                                            [
-                                                another_germline_allele,
-                                                mosaic_allele,
-                                            ]
-                                        ),
+                                    all_alleles_list_for_gt_output[mosaic_allele]
+                                    == all_alleles_list_for_gt_output[
+                                        mosaic_source_germline_allele
                                     ]
-                                )
-                                update_mosaic_fraction = (
-                                    1 - max_mosaic_mosaic_fraction
-                                )
-                        # if len(set(MaxMosaicGT_for_pop_output[0]) - set(MaxMosaicGT_for_pop_output[1])) == 1:
-                        #     mosaic_allele = list(
-                        #         set(MaxMosaicGT_for_pop_output[0]) - set(MaxMosaicGT_for_pop_output[1]))[0]
-                        # else:
-                        #     mosaic_allele = (
-                        #         set(MaxMosaicGT_for_pop_output[1]) - set(MaxMosaicGT_for_pop_output[0]))[0]
-                        if LIKELIHOOD_MODE == "length-based":
-                            if (
-                                all_alleles_list_for_gt_output[mosaic_allele]
-                                == all_alleles_list_for_gt_output[
-                                    mosaic_source_germline_allele
-                                ]
-                            ):
-                                # if all_alleles_list_for_gt_output[mosaic_allele] == seg_locus.ref_allele_length:
-                                samples_dict[bamname]["MUTP"] = "mismatch"
-                                samples_dict[bamname]["FRAME"] = "zero"
-                                samples_dict[bamname]["MBP"] = 0
-                            elif (
-                                all_alleles_list_for_gt_output[mosaic_allele]
-                                > all_alleles_list_for_gt_output[
-                                    mosaic_source_germline_allele
-                                ]
-                            ):
-                                # elif all_alleles_list_for_gt_output[mosaic_allele] > seg_locus.ref_allele_length:
-                                samples_dict[bamname]["MUTP"] = "ins"
-                                if (
-                                    abs(
+                                ):
+                                    # if all_alleles_list_for_gt_output[mosaic_allele] == seg_locus.ref_allele_length:
+                                    samples_dict[bamname]["MUTP"] = "mismatch"
+                                    samples_dict[bamname]["FRAME"] = "zero"
+                                    samples_dict[bamname]["MBP"] = 0
+                                elif (
+                                    all_alleles_list_for_gt_output[mosaic_allele]
+                                    > all_alleles_list_for_gt_output[
+                                        mosaic_source_germline_allele
+                                    ]
+                                ):
+                                    # elif all_alleles_list_for_gt_output[mosaic_allele] > seg_locus.ref_allele_length:
+                                    samples_dict[bamname]["MUTP"] = "ins"
+                                    if (
+                                        abs(
+                                            all_alleles_list_for_gt_output[
+                                                mosaic_allele
+                                            ]
+                                            - all_alleles_list_for_gt_output[
+                                                mosaic_source_germline_allele
+                                            ]
+                                        )
+                                        % seg_locus.motif_length
+                                        == 0
+                                    ):
+                                        samples_dict[bamname]["FRAME"] = "inframe"
+                                    else:
+                                        samples_dict[bamname]["FRAME"] = "outframe"
+                                    samples_dict[bamname]["MBP"] = (
                                         all_alleles_list_for_gt_output[
                                             mosaic_allele
                                         ]
@@ -2594,24 +2620,24 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                             mosaic_source_germline_allele
                                         ]
                                     )
-                                    % seg_locus.motif_length
-                                    == 0
-                                ):
-                                    samples_dict[bamname]["FRAME"] = "inframe"
                                 else:
-                                    samples_dict[bamname]["FRAME"] = "outframe"
-                                samples_dict[bamname]["MBP"] = (
-                                    all_alleles_list_for_gt_output[
-                                        mosaic_allele
-                                    ]
-                                    - all_alleles_list_for_gt_output[
-                                        mosaic_source_germline_allele
-                                    ]
-                                )
-                            else:
-                                samples_dict[bamname]["MUTP"] = "del"
-                                if (
-                                    abs(
+                                    samples_dict[bamname]["MUTP"] = "del"
+                                    if (
+                                        abs(
+                                            all_alleles_list_for_gt_output[
+                                                mosaic_allele
+                                            ]
+                                            - all_alleles_list_for_gt_output[
+                                                mosaic_source_germline_allele
+                                            ]
+                                        )
+                                        % seg_locus.motif_length
+                                        == 0
+                                    ):
+                                        samples_dict[bamname]["FRAME"] = "inframe"
+                                    else:
+                                        samples_dict[bamname]["FRAME"] = "outframe"
+                                    samples_dict[bamname]["MBP"] = (
                                         all_alleles_list_for_gt_output[
                                             mosaic_allele
                                         ]
@@ -2619,311 +2645,361 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                             mosaic_source_germline_allele
                                         ]
                                     )
-                                    % seg_locus.motif_length
-                                    == 0
-                                ):
-                                    samples_dict[bamname]["FRAME"] = "inframe"
-                                else:
-                                    samples_dict[bamname]["FRAME"] = "outframe"
-                                samples_dict[bamname]["MBP"] = (
-                                    all_alleles_list_for_gt_output[
-                                        mosaic_allele
-                                    ]
-                                    - all_alleles_list_for_gt_output[
-                                        mosaic_source_germline_allele
-                                    ]
-                                )
-                        else:
-                            if len(
-                                all_alleles_list_for_gt_output[mosaic_allele][
-                                    1
-                                ]
-                            ) == len(
-                                all_alleles_list_for_gt_output[
-                                    mosaic_source_germline_allele
-                                ][1]
-                            ):
-                                # if len(all_alleles_list_for_gt_output[mosaic_allele][1]) == seg_locus.ref_allele_length:
-                                samples_dict[bamname]["MUTP"] = "mismatch"
-                                samples_dict[bamname]["FRAME"] = "zero"
-                                samples_dict[bamname]["MBP"] = 0
-                            # elif len(all_alleles_list_for_gt_output[mosaic_allele][1]) > seg_locus.ref_allele_length:
-                            elif len(
-                                all_alleles_list_for_gt_output[mosaic_allele][
-                                    1
-                                ]
-                            ) > len(
-                                all_alleles_list_for_gt_output[
-                                    mosaic_source_germline_allele
-                                ][1]
-                            ):
-                                samples_dict[bamname]["MUTP"] = "ins"
-                                if (
-                                    abs(
-                                        len(
-                                            all_alleles_list_for_gt_output[
-                                                mosaic_allele
-                                            ][1]
-                                        )
-                                        - len(
-                                            all_alleles_list_for_gt_output[
-                                                mosaic_source_germline_allele
-                                            ][1]
-                                        )
-                                    )
-                                    % seg_locus.motif_length
-                                    == 0
-                                ):
-                                    samples_dict[bamname]["FRAME"] = "inframe"
-                                else:
-                                    samples_dict[bamname]["FRAME"] = "outframe"
-                                samples_dict[bamname]["MBP"] = len(
-                                    all_alleles_list_for_gt_output[
-                                        mosaic_allele
-                                    ][1]
-                                ) - len(
-                                    all_alleles_list_for_gt_output[
-                                        mosaic_source_germline_allele
-                                    ][1]
-                                )  # 先前版本没括号并且 -减号 另起了一行造成 MBP 这个参数错误
                             else:
-                                samples_dict[bamname]["MUTP"] = "del"
-                                if (
-                                    abs(
-                                        len(
-                                            all_alleles_list_for_gt_output[
-                                                mosaic_allele
-                                            ][1]
-                                        )
-                                        - len(
-                                            all_alleles_list_for_gt_output[
-                                                mosaic_source_germline_allele
-                                            ][1]
-                                        )
-                                    )
-                                    % seg_locus.motif_length
-                                    == 0
-                                ):
-                                    samples_dict[bamname]["FRAME"] = "inframe"
-                                else:
-                                    samples_dict[bamname]["FRAME"] = "outframe"
-                                samples_dict[bamname]["MBP"] = len(
-                                    all_alleles_list_for_gt_output[
-                                        mosaic_allele
-                                    ][1]
-                                ) - len(
+                                if len(
+                                    all_alleles_list_for_gt_output[mosaic_allele][
+                                        1
+                                    ]
+                                ) == len(
                                     all_alleles_list_for_gt_output[
                                         mosaic_source_germline_allele
                                     ][1]
-                                )  # 先前版本没括号并且 -减号 另起了一行造成 MBP 这个参数错误
-                        # # (12) mut bp and mut motif
-                        # mut_bp = mosaic_allele_str - mutated_allele_str
-                        # mut_motif_steps = (mut_bp)/motif_length
-                        # # 求余数
-                        # remainder = (mut_bp)%motif_length
-                        # # 求整数商
-                        # integer_quotient = (mut_bp)//motif_length
-                        # mutated_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mutated_allele_str_index],motif_length)
-                        # mosaic_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mosaic_allele_str_index],motif_length)
-                        # XXX: Here is observed GT depth and not expected depth (considering stutter error reads depth when use expected)
-                        four_alleles_index_list = []
-                        mle_allele_index_list = []
-                        EAD = ""
-                        EAF = ""
-                        for mosaic_allele_pop_out_index in [
-                            update_mosaic_gts_alleles[0][0],
-                            update_mosaic_gts_alleles[0][1],
-                            update_mosaic_gts_alleles[1][0],
-                            update_mosaic_gts_alleles[1][1],
-                        ]:
-                            mosaic_allele = all_alleles_list_for_gt_output[
-                                mosaic_allele_pop_out_index
-                            ]
-                            mosaic_allele_used_index = (
-                                unphase_calling.alleles_used_for_gt.index(
-                                    mosaic_allele
+                                ):
+                                    # if len(all_alleles_list_for_gt_output[mosaic_allele][1]) == seg_locus.ref_allele_length:
+                                    samples_dict[bamname]["MUTP"] = "mismatch"
+                                    samples_dict[bamname]["FRAME"] = "zero"
+                                    samples_dict[bamname]["MBP"] = 0
+                                # elif len(all_alleles_list_for_gt_output[mosaic_allele][1]) > seg_locus.ref_allele_length:
+                                elif len(
+                                    all_alleles_list_for_gt_output[mosaic_allele][
+                                        1
+                                    ]
+                                ) > len(
+                                    all_alleles_list_for_gt_output[
+                                        mosaic_source_germline_allele
+                                    ][1]
+                                ):
+                                    samples_dict[bamname]["MUTP"] = "ins"
+                                    if (
+                                        abs(
+                                            len(
+                                                all_alleles_list_for_gt_output[
+                                                    mosaic_allele
+                                                ][1]
+                                            )
+                                            - len(
+                                                all_alleles_list_for_gt_output[
+                                                    mosaic_source_germline_allele
+                                                ][1]
+                                            )
+                                        )
+                                        % seg_locus.motif_length
+                                        == 0
+                                    ):
+                                        samples_dict[bamname]["FRAME"] = "inframe"
+                                    else:
+                                        samples_dict[bamname]["FRAME"] = "outframe"
+                                    samples_dict[bamname]["MBP"] = len(
+                                        all_alleles_list_for_gt_output[
+                                            mosaic_allele
+                                        ][1]
+                                    ) - len(
+                                        all_alleles_list_for_gt_output[
+                                            mosaic_source_germline_allele
+                                        ][1]
+                                    )  # 先前版本没括号并且 -减号 另起了一行造成 MBP 这个参数错误
+                                else:
+                                    samples_dict[bamname]["MUTP"] = "del"
+                                    if (
+                                        abs(
+                                            len(
+                                                all_alleles_list_for_gt_output[
+                                                    mosaic_allele
+                                                ][1]
+                                            )
+                                            - len(
+                                                all_alleles_list_for_gt_output[
+                                                    mosaic_source_germline_allele
+                                                ][1]
+                                            )
+                                        )
+                                        % seg_locus.motif_length
+                                        == 0
+                                    ):
+                                        samples_dict[bamname]["FRAME"] = "inframe"
+                                    else:
+                                        samples_dict[bamname]["FRAME"] = "outframe"
+                                    samples_dict[bamname]["MBP"] = len(
+                                        all_alleles_list_for_gt_output[
+                                            mosaic_allele
+                                        ][1]
+                                    ) - len(
+                                        all_alleles_list_for_gt_output[
+                                            mosaic_source_germline_allele
+                                        ][1]
+                                    )  # 先前版本没括号并且 -减号 另起了一行造成 MBP 这个参数错误
+                            # # (12) mut bp and mut motif
+                            # mut_bp = mosaic_allele_str - mutated_allele_str
+                            # mut_motif_steps = (mut_bp)/motif_length
+                            # # 求余数
+                            # remainder = (mut_bp)%motif_length
+                            # # 求整数商
+                            # integer_quotient = (mut_bp)//motif_length
+                            # mutated_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mutated_allele_str_index],motif_length)
+                            # mosaic_allele_is_perfect_tr = myutils.is_tandem_repeated_sequence(phase_mosaic_fraction_estimation.alleles_seq_used_for_gt[mosaic_allele_str_index],motif_length)
+                            # XXX: Here is observed GT depth and not expected depth (considering stutter error reads depth when use expected)
+                            four_alleles_index_list = []
+                            mle_allele_index_list = []
+                            EAD = ""
+                            EAF = ""
+                            for mosaic_allele_pop_out_index in [
+                                update_mosaic_gts_alleles[0][0],
+                                update_mosaic_gts_alleles[0][1],
+                                update_mosaic_gts_alleles[1][0],
+                                update_mosaic_gts_alleles[1][1],
+                            ]:
+                                mosaic_allele = all_alleles_list_for_gt_output[
+                                    mosaic_allele_pop_out_index
+                                ]
+                                mosaic_allele_used_index = (
+                                    unphase_calling.alleles_used_for_gt.index(
+                                        mosaic_allele
+                                    )
                                 )
-                            )
-                            four_alleles_index_list.append(
-                                mosaic_allele_used_index
-                            )
-                            if (
-                                mosaic_allele_used_index
-                                in mle_allele_index_list
-                            ):
-                                pass
-                            else:
-                                mle_allele_index_list.append(
+                                four_alleles_index_list.append(
                                     mosaic_allele_used_index
                                 )
-                            EAD += (
-                                str(alleles_depth_dict.get(mosaic_allele, 0))
-                                + ","
-                            )
-                            EAF += (
-                                str(
-                                    alleles_depth_dict.get(mosaic_allele, 0)
-                                    / unphase_calling.reads_number
+                                if (
+                                    mosaic_allele_used_index
+                                    in mle_allele_index_list
+                                ):
+                                    pass
+                                else:
+                                    mle_allele_index_list.append(
+                                        mosaic_allele_used_index
+                                    )
+                                EAD += (
+                                    str(alleles_depth_dict.get(mosaic_allele, 0))
+                                    + ","
                                 )
-                                + ","
+                                EAF += (
+                                    str(
+                                        alleles_depth_dict.get(mosaic_allele, 0)
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                )
+                            (
+                                unphase_gt_hap_depth_list,
+                                unphase_gt_unknown_assign_num,
+                            ) = myutils.cal_mle_haplotype_depth_dict_given_mosaicgt_phase(
+                                unphase_calling.all_reads_all_alleles_log_lik_array,
+                                mle_allele_index_list,
                             )
-                        (
-                            unphase_gt_hap_depth_list,
-                            unphase_gt_unknown_assign_num,
-                        ) = myutils.cal_mle_haplotype_depth_dict_given_mosaicgt_phase(
-                            unphase_calling.all_reads_all_alleles_log_lik_array,
-                            mle_allele_index_list,
-                        )
-                        EMLEAD = ""
-                        EMLEAF = ""
-                        for (
-                            mosaic_allele_used_index
-                        ) in four_alleles_index_list:
-                            hap_depth_index = mle_allele_index_list.index(
+                            EMLEAD = ""
+                            EMLEAF = ""
+                            for (
                                 mosaic_allele_used_index
-                            )
-                            mosaic_allele_used_depth = (
-                                unphase_gt_hap_depth_list[hap_depth_index]
-                            )
-                            EMLEAD += str(mosaic_allele_used_depth) + ","
-                            EMLEAF += (
-                                str(
-                                    mosaic_allele_used_depth
-                                    / unphase_calling.reads_number
+                            ) in four_alleles_index_list:
+                                hap_depth_index = mle_allele_index_list.index(
+                                    mosaic_allele_used_index
                                 )
-                                + ","
+                                mosaic_allele_used_depth = (
+                                    unphase_gt_hap_depth_list[hap_depth_index]
+                                )
+                                EMLEAD += str(mosaic_allele_used_depth) + ","
+                                EMLEAF += (
+                                    str(
+                                        mosaic_allele_used_depth
+                                        / unphase_calling.reads_number
+                                    )
+                                    + ","
+                                )
+                            # for adp in hap_depth_list[all_mosaic_alleles]:
+                            #     EAD = str(adp)+","
+                            #     EAF = str(adp/unphase_calling.reads_number)+","
+                            EAD = EAD[:-1]
+                            EAF = EAF[:-1]
+                            EMLEAD = EMLEAD[:-1]
+                            EMLEAF = EMLEAF[:-1]
+                            samples_dict[bamname]["GT"] = (
+                                str(update_mosaic_gts_alleles[0][0])
+                                + "/"
+                                + str(update_mosaic_gts_alleles[0][1])
                             )
-                        # for adp in hap_depth_list[all_mosaic_alleles]:
-                        #     EAD = str(adp)+","
-                        #     EAF = str(adp/unphase_calling.reads_number)+","
-                        EAD = EAD[:-1]
-                        EAF = EAF[:-1]
-                        EMLEAD = EMLEAD[:-1]
-                        EMLEAF = EMLEAF[:-1]
-                        samples_dict[bamname]["GT"] = (
-                            str(update_mosaic_gts_alleles[0][0])
-                            + "/"
-                            + str(update_mosaic_gts_alleles[0][1])
-                        )
-                        samples_dict[bamname]["MGT"] = (
+                            samples_dict[bamname]["MGT"] = (
+                                str(update_mosaic_gts_alleles[1][0])
+                                + "/"
+                                + str(update_mosaic_gts_alleles[1][1])
+                            )
+                            samples_dict[bamname]["MF"] = update_mosaic_fraction
+                        # HACK: MF may represent the Het2Hom mosaic fraction, and if only use hom2het and het2het mosaic fraction
+                        # The het2hom mosaic fraction need transform to 1 - MF
+                        if (
                             str(update_mosaic_gts_alleles[1][0])
-                            + "/"
-                            + str(update_mosaic_gts_alleles[1][1])
+                            == str(update_mosaic_gts_alleles[1][1])
+                        ) and (
+                            samples_dict[bamname]["GT"]
+                            != samples_dict[bamname]["MGT"]
+                        ):
+                            samples_dict[bamname]["MF_hom2het_het2het"] = (
+                                1 - samples_dict[bamname]["MF"]
+                            )
+                        else:
+                            samples_dict[bamname][
+                                "MF_hom2het_het2het"
+                            ] = samples_dict[bamname]["MF"]
+                        samples_dict[bamname]["EAD"] = EAD
+                        samples_dict[bamname]["EAF"] = EAF
+                        samples_dict[bamname]["EMLEAD"] = EMLEAD
+                        samples_dict[bamname]["EMLEAF"] = EMLEAF
+                        samples_dict[bamname]["MLEUAF"] = (
+                            unphase_gt_unknown_assign_num
+                            / unphase_calling.reads_number
                         )
-                        samples_dict[bamname]["MF"] = update_mosaic_fraction
-                    # HACK: MF may represent the Het2Hom mosaic fraction, and if only use hom2het and het2het mosaic fraction
-                    # The het2hom mosaic fraction need transform to 1 - MF
-                    if (
-                        str(update_mosaic_gts_alleles[1][0])
-                        == str(update_mosaic_gts_alleles[1][1])
-                    ) and (
-                        samples_dict[bamname]["GT"]
-                        != samples_dict[bamname]["MGT"]
-                    ):
-                        samples_dict[bamname]["MF_hom2het_het2het"] = (
-                            1 - samples_dict[bamname]["MF"]
-                        )
-                    else:
+                        # samples_dict[bamname]["GT"] = str(
+                        #     MaxMosaicGT_for_pop_output[0][0])+"/"+str(MaxMosaicGT_for_pop_output[0][1])
+                        # samples_dict[bamname]["MGT"] = str(
+                        #     MaxMosaicGT_for_pop_output[1][0])+"/"+str(MaxMosaicGT_for_pop_output[1][1])
+                        # samples_dict[bamname]["VARIANTTYPE"] = mosaic_type
+                        samples_dict[bamname]["VARIANTTYPE"] = unphase_mosaic_type
                         samples_dict[bamname][
-                            "MF_hom2het_het2het"
-                        ] = samples_dict[bamname]["MF"]
-                    samples_dict[bamname]["EAD"] = EAD
-                    samples_dict[bamname]["EAF"] = EAF
-                    samples_dict[bamname]["EMLEAD"] = EMLEAD
-                    samples_dict[bamname]["EMLEAF"] = EMLEAF
-                    samples_dict[bamname]["MLEUAF"] = (
-                        unphase_gt_unknown_assign_num
-                        / unphase_calling.reads_number
-                    )
-                    # samples_dict[bamname]["GT"] = str(
-                    #     MaxMosaicGT_for_pop_output[0][0])+"/"+str(MaxMosaicGT_for_pop_output[0][1])
-                    # samples_dict[bamname]["MGT"] = str(
-                    #     MaxMosaicGT_for_pop_output[1][0])+"/"+str(MaxMosaicGT_for_pop_output[1][1])
-                    # samples_dict[bamname]["VARIANTTYPE"] = mosaic_type
-                    samples_dict[bamname]["VARIANTTYPE"] = unphase_mosaic_type
-                    samples_dict[bamname][
-                        "REGION"
-                    ] = (  # TODO: align mutated allele to reference and mutant allele to mutated allele to anchor mutation location and mutation region
-                        "NA"
-                    )
-                    samples_dict[bamname]["MP"] = np.exp(MaxMosaicLogPosterior)
-                    samples_dict[bamname]["CMP"] = np.exp(
-                        ConsistentMaxMosaicLogPosterior
-                    )
-                    samples_dict[bamname]["AMP"] = np.exp(
-                        Non_Germ2germLogPosterior
-                    )
-                    samples_dict[bamname][
-                        "GQ"
-                    ] = f"{mosaic_vs_second_or},{mosaic_vs_second_p}"
-                    samples_dict[bamname][
-                        "GG"
-                    ] = f"{mosaic_vs_germline_or},{mosaic_vs_germline_p}"
-                    samples_dict[bamname][
-                        "PSTR"
-                    ] = myutils.is_tandem_repeated_sequence(
-                        seg_locus.ref_STR_sequence, seg_locus.motif_length
-                    )
-                    samples_dict[bamname]["DP"] = unphase_calling.reads_number
-                    samples_dict[bamname]["FDP"] = filtered_out_reads_depth
-                    AAD = ""
-                    for allele in all_alleles_list_for_gt_output:
-                        allele_depth = alleles_depth_dict.get(allele, 0)
-                        AAD = AAD + str(allele_depth) + ","
-                    AAD = AAD[:-1]
-                    samples_dict[bamname]["AAD"] = AAD
-                    filter1 = int(
-                        samples_dict[bamname]["MP"]
-                        > MAX_MOSAIC_POSTERIOR_CUTOFF
-                    )
-                    filter2 = int(
-                        samples_dict[bamname]["AMP"]
-                        > ALL_MOSAIC_POSTERIOR_CUTOFF
-                    )
-                    filter3 = int(mosaic_vs_second_p < LRT_PVALUE_CUTOFF)
-                    filter4 = int(mosaic_vs_germline_p < LRT_PVALUE_CUTOFF)
-                    confidence = filter1 + filter2 + filter3 + filter4
-                    samples_dict[bamname][
-                        "FILTER"
-                    ] = f"{confidence},{filter1},{filter2},{filter3},{filter4}"
-                    # germline 的信息,修改 VCF header title 和 record
-                    samples_dict[bamname]["GI"] = (
-                        str(MaxGermGT_for_pop_output[0])
-                        + "/"
-                        + str(MaxGermGT_for_pop_output[1])
-                    )
-                    samples_dict[bamname]["GIP"] = np.exp(
-                        MaxGermlineLogPosterior
-                    )
-                    samples_dict[bamname]["GIQ"] = best_germ_vs_second_germ_or
-                    samples_dict[bamname][
-                        "GIQP"
-                    ] = best_germ_vs_second_germ_pvalue
-                    mosaic_allele_list.append(
-                        all_alleles_list_for_gt_output[
-                            MaxMosaicGT_for_pop_output[0][0]
-                        ]
-                    )
-                    mosaic_allele_list.append(
-                        all_alleles_list_for_gt_output[
-                            MaxMosaicGT_for_pop_output[0][1]
-                        ]
-                    )
-                    mosaic_allele_list.append(
-                        all_alleles_list_for_gt_output[
-                            MaxMosaicGT_for_pop_output[1][0]
-                        ]
-                    )
-                    mosaic_allele_list.append(
-                        all_alleles_list_for_gt_output[
-                            MaxMosaicGT_for_pop_output[1][1]
-                        ]
-                    )
-                    mosaic_allele_list = list(set(mosaic_allele_list))
+                            "REGION"
+                        ] = (  # TODO: align mutated allele to reference and mutant allele to mutated allele to anchor mutation location and mutation region
+                            "NA"
+                        )
+                        samples_dict[bamname]["MP"] = np.exp(MaxMosaicLogPosterior)
+                        samples_dict[bamname]["CMP"] = np.exp(
+                            ConsistentMaxMosaicLogPosterior
+                        )
+                        samples_dict[bamname]["AMP"] = np.exp(
+                            Non_Germ2germLogPosterior
+                        )
+                        samples_dict[bamname][
+                            "GQ"
+                        ] = f"{mosaic_vs_second_or},{mosaic_vs_second_p}"
+                        samples_dict[bamname][
+                            "GG"
+                        ] = f"{mosaic_vs_germline_or},{mosaic_vs_germline_p}"
+                        samples_dict[bamname][
+                            "PSTR"
+                        ] = myutils.is_tandem_repeated_sequence(
+                            seg_locus.ref_STR_sequence, seg_locus.motif_length
+                        )
+                        samples_dict[bamname]["DP"] = unphase_calling.reads_number
+                        samples_dict[bamname]["FDP"] = filtered_out_reads_depth
+                        AAD = ""
+                        for allele in all_alleles_list_for_gt_output:
+                            allele_depth = alleles_depth_dict.get(allele, 0)
+                            AAD = AAD + str(allele_depth) + ","
+                        AAD = AAD[:-1]
+                        samples_dict[bamname]["AAD"] = AAD
+                        filter1 = int(
+                            samples_dict[bamname]["MP"]
+                            > MAX_MOSAIC_POSTERIOR_CUTOFF
+                        )
+                        filter2 = int(
+                            samples_dict[bamname]["AMP"]
+                            > ALL_MOSAIC_POSTERIOR_CUTOFF
+                        )
+                        filter3 = int(mosaic_vs_second_p < LRT_PVALUE_CUTOFF)
+                        filter4 = int(mosaic_vs_germline_p < LRT_PVALUE_CUTOFF)
+                        confidence = filter1 + filter2 + filter3 + filter4
+                        samples_dict[bamname][
+                            "FILTER"
+                        ] = f"{confidence},{filter1},{filter2},{filter3},{filter4}"
+                        # germline 的信息,修改 VCF header title 和 record
+                        samples_dict[bamname]["GI"] = (
+                            str(MaxGermGT_for_pop_output[0])
+                            + "/"
+                            + str(MaxGermGT_for_pop_output[1])
+                        )
+                        samples_dict[bamname]["GIP"] = np.exp(
+                            MaxGermlineLogPosterior
+                        )
+                        samples_dict[bamname]["GIQ"] = best_germ_vs_second_germ_or
+                        samples_dict[bamname][
+                            "GIQP"
+                        ] = best_germ_vs_second_germ_pvalue
+                        mosaic_allele_list.append(
+                            all_alleles_list_for_gt_output[
+                                MaxMosaicGT_for_pop_output[0][0]
+                            ]
+                        )
+                        mosaic_allele_list.append(
+                            all_alleles_list_for_gt_output[
+                                MaxMosaicGT_for_pop_output[0][1]
+                            ]
+                        )
+                        mosaic_allele_list.append(
+                            all_alleles_list_for_gt_output[
+                                MaxMosaicGT_for_pop_output[1][0]
+                            ]
+                        )
+                        mosaic_allele_list.append(
+                            all_alleles_list_for_gt_output[
+                                MaxMosaicGT_for_pop_output[1][1]
+                            ]
+                        )
+                        mosaic_allele_list = list(set(mosaic_allele_list))
+                    else:
+                        # samples_dict[bamname] = {}
+                        uncallable_reason = unphase_calling.loci_calling
+                        samples_dict[bamname]["FILTER"] = uncallable_reason
+                        (
+                            GI,
+                            GIP,
+                            GIQ,
+                            GIQP,
+                        ) = (
+                            unphase_calling.still_output_germline_gt_and_post_when_uncallable()
+                        )
+                        if GI == ".":
+                            samples_dict[bamname]["GI"] = GI
+                        else:
+                            MaxGermGT_for_pop_output = (
+                                unphase_calling.get_final_gt_index(GI)
+                            )
+                            samples_dict[bamname]["GI"] = (
+                                str(MaxGermGT_for_pop_output[0])
+                                + "/"
+                                + str(MaxGermGT_for_pop_output[1])
+                            )
+                        samples_dict[bamname]["GIP"] = GIP
+                        samples_dict[bamname]["GIQ"] = GIQ
+                        samples_dict[bamname]["GIQP"] = GIQP
+                        logger_mosaic.info(
+                            "Sample %s and Locus %s %s:%d-%d is not usable"
+                            " because %s"
+                            % (
+                                bamname,
+                                seg_locus.STR_id,
+                                seg_locus.chrom,
+                                seg_locus.start,
+                                seg_locus.end,
+                                uncallable_reason,
+                            )
+                        )
+                        with open(fail_file, "a") as f:
+                            if myutils.acquire_lock(f):
+                                f.write(
+                                    "unphase\t%s\t%s\t%d\t%d\t%s\t%s\n"
+                                    % (
+                                        bamname,
+                                        seg_locus.chrom,
+                                        seg_locus.start,
+                                        seg_locus.end,
+                                        seg_locus.STR_id,
+                                        uncallable_reason,
+                                    )
+                                )
+                                myutils.release_lock(f)
+                        # continue
+                        # HACK: add extra infors for DP and AAD
+                        samples_dict[bamname]["DP"] = unphase_calling.reads_number
+                        AAD = ""
+                        for allele in all_alleles_list_for_gt_output:
+                            allele_depth = alleles_depth_dict.get(allele, 0)
+                            AAD = AAD + str(allele_depth) + ","
+                        AAD = AAD[:-1]
+                        samples_dict[bamname]["AAD"] = AAD
+                        # HACK: No check here
                 else:
                     # samples_dict[bamname] = {}
-                    uncallable_reason = unphase_calling.loci_calling
-                    samples_dict[bamname]["FILTER"] = uncallable_reason
+                    MaxMosaicGT_for_output = False  # 为了下面 phase 的条件判断
+                    # uncallable_reason = unphase_calling.loci_calling
+                    # HACK: Set Max Iteration Time To Avoid Mapping Errors High Depth Issues
+                    samples_dict[bamname]["FILTER"] = "TimeOutError"
                     (
                         GI,
                         GIP,
@@ -2947,15 +3023,14 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                     samples_dict[bamname]["GIQ"] = GIQ
                     samples_dict[bamname]["GIQP"] = GIQP
                     logger_mosaic.info(
-                        "Sample %s and Locus %s %s:%d-%d is not usable"
-                        " because %s"
+                        "Sample %s and Locus %s %s:%d-%d is not usable because %s"
                         % (
                             bamname,
                             seg_locus.STR_id,
                             seg_locus.chrom,
                             seg_locus.start,
                             seg_locus.end,
-                            uncallable_reason,
+                            "TimeOutError",
                         )
                     )
                     with open(fail_file, "a") as f:
@@ -2968,7 +3043,7 @@ def main_per_locus_estimation(parse_params, pysam_bed_row):
                                     seg_locus.start,
                                     seg_locus.end,
                                     seg_locus.STR_id,
-                                    uncallable_reason,
+                                    "TimeOutError",
                                 )
                             )
                             myutils.release_lock(f)
