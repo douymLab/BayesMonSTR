@@ -14,13 +14,13 @@ def process_vcf(vcf_file, output_file):
     moff = open(mof, "a")
     for vcf_record in vcf_in.fetch():
         all_sample_name = vcf_record.samples.keys()
-        line_gi = ""
-        line_mos = ""
+        gi_list = []
         mos_list = []
         for sample_name in all_sample_name:
-            germ_index = vcf_record.samples[sample_name]["GT"]
-            mosaic_index = vcf_record.samples[sample_name]["MGT"][0].split("/")
-            GI = vcf_record.samples[sample_name]["GI"]
+            sample = vcf_record.samples[sample_name]
+            germ_index = sample["GT"]
+            mosaic_index = sample["MGT"][0].split("/")
+            GI = sample["GI"]
             if GI[0] == ".":
                 GermGT2_string = "."
             else:
@@ -46,8 +46,7 @@ def process_vcf(vcf_file, output_file):
                 mosaicGT = [str(allele) for allele in mosaicGT]
                 mosaicGT = "_".join(mosaicGT)
             mos_list.append(mosaicGT)
-            line_mos += mosaicGT + "\t"
-            line_gi += GermGT2_string + "\t"
+            gi_list.append(GermGT2_string)
         uncallable_num = mos_list.count("._._._.")
         uncallable_frac = uncallable_num / len(all_sample_name)
         chrom = vcf_record.chrom
@@ -57,7 +56,7 @@ def process_vcf(vcf_file, output_file):
         MOTIF_length = len(MOTIF)
         PERIOD = vcf_record.info["PERIOD"]
         str_id = vcf_record.info["STRID"]
-        line_mos = (
+        prefix = (
             str(chrom)
             + "\t"
             + str(STRSTART)
@@ -72,7 +71,10 @@ def process_vcf(vcf_file, output_file):
             + "\t"
             + MOTIF
             + "\t"
-            + line_mos.strip()
+        )
+        line_mos = (
+            prefix
+            + "\t".join(mos_list)
             + "\t"
             + str(uncallable_num)
             + "\t"
@@ -80,23 +82,7 @@ def process_vcf(vcf_file, output_file):
         )
         line_mos = line_mos.strip()
         line_mos += "\n"
-        line_gi = (
-            str(chrom)
-            + "\t"
-            + str(STRSTART)
-            + "\t"
-            + str(STREND)
-            + "\t"
-            + str(MOTIF_length)
-            + "\t"
-            + str(PERIOD)
-            + "\t"
-            + str_id
-            + "\t"
-            + MOTIF
-            + "\t"
-            + line_gi
-        )
+        line_gi = prefix + "\t".join(gi_list)
         line_gi = line_gi.strip()
         line_gi += "\n"
         # if myutils.acquire_lock(gif):
