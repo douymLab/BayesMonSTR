@@ -673,6 +673,7 @@ def process_vcf(
     het_no_filter,
 ):
     vcf_in = pysam.VariantFile(vcf_file)
+    vcf_in.subset_samples([sample_name])
     result_features = [
         "chrom",
         "STRSTART",
@@ -788,9 +789,6 @@ def process_vcf(
         if str_id in finish_str_id_list:
             continue
         finish_str_id_list.add(str_id)
-        if bed_filter_out:
-            if bed_region_filter(vcf_based_features, bed_pysam) == "Fail":
-                continue
         if (
             initial_hard_filter(
                 vcf_based_features,
@@ -805,6 +803,9 @@ def process_vcf(
             == "Fail"
         ):
             continue
+        if bed_filter_out:
+            if bed_region_filter(vcf_based_features, bed_pysam) == "Fail":
+                continue
         if recurrent_filter_file:
             (
                 uncallable_num,
